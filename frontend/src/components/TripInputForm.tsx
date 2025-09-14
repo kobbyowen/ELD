@@ -20,6 +20,7 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { TripCalcResponse } from "../lib/types";
 import { calculateTrip } from "../lib/trips";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
+import PlannerNav from "./PlannerNav";
 
 export type TripFormValues = {
   currentLocation: string;
@@ -200,6 +201,7 @@ export default function TripForm({
 
   return (
     <Box sx={{ p: 2.5 }}>
+      <PlannerNav />
       <Stack alignItems="center" spacing={1.5} mb={4} textAlign="center">
         <Stack direction="row" alignItems="center" spacing={1}>
           <LocalShippingIcon sx={{ color: "primary.main", fontSize: 32 }} />

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { Box, IconButton } from "@mui/material";
+import { Box, IconButton, Tooltip } from "@mui/material";
 import maplibregl, { Map } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -11,6 +11,9 @@ import type { TripCalcResponse } from "../lib/types";
 
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+
+import HomeIcon from "@mui/icons-material/Home";
+import { useNavigate } from "react-router-dom";
 
 const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
@@ -24,6 +27,7 @@ function PlannerScreen() {
   const mapRef = useRef<Map | null>(null);
   const mapEl = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const navigate = useNavigate();
 
   const [calcData, setCalcData] = useState<TripCalcResponse | null>(null);
   const [values, setValues] = useState<TripFormValues | null>(null);
@@ -41,6 +45,8 @@ function PlannerScreen() {
     },
     []
   );
+
+  const goHome = useCallback(() => navigate("/dashboard"), [navigate]);
 
   const logTrip = useCallback(async () => {
     setIsSaving(true);
@@ -254,8 +260,9 @@ function PlannerScreen() {
           top: 0,
           left: 0,
           height: "100vh",
+          zIndex: 2,
           width: { xs: "100%", sm: "420px", md: "34vw" },
-          maxWidth: 520,
+          maxWidth: 450,
           bgcolor: (t) =>
             t.palette.mode === "light"
               ? "rgba(255,255,255,0.96)"
@@ -291,8 +298,16 @@ function PlannerScreen() {
         sx={{
           position: "fixed",
           top: "50%",
-          transform: "translateY(-50%)",
-          left: open ? { xs: "calc(100% - 44px)", sm: "420px", md: "34vw" } : 8,
+          transform: open
+            ? "translateY(-50%) translateX(-50%)"
+            : "translateY(-50%) ",
+          left: open
+            ? {
+                xs: "min(100vw, 450px)",
+                sm: "420px",
+                md: "min(34vw, 450px)",
+              }
+            : 8,
           transition: "left 360ms cubic-bezier(0.22, 1, 0.36, 1)",
           bgcolor: (t) => (t.palette.mode === "light" ? "white" : "grey.900"),
           border: (t) => `1px solid ${t.palette.divider}`,
@@ -307,6 +322,30 @@ function PlannerScreen() {
       >
         {open ? <ChevronLeftIcon /> : <ChevronRightIcon />}
       </IconButton>
+
+      <Tooltip title="Back to Dashboard">
+        <IconButton
+          onClick={goHome}
+          size="small"
+          sx={{
+            position: "absolute",
+            top: 8,
+            left: 8,
+            zIndex: 0,
+            bgcolor: (t) =>
+              t.palette.mode === "light" ? "white" : "rgba(0,0,0,0.7)",
+            border: (t) => `1px solid ${t.palette.divider}`,
+            boxShadow: 2,
+            "&:hover": {
+              bgcolor: (t) =>
+                t.palette.mode === "light" ? "grey.50" : "rgba(0,0,0,0.8)",
+            },
+          }}
+          aria-label="Go to dashboard"
+        >
+          <HomeIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
     </Box>
   );
 }
