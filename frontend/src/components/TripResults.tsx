@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useCallback, memo } from "react";
 import { Box, Stack, Typography, Divider, Button, Alert } from "@mui/material";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
@@ -31,31 +31,18 @@ export default function TripResults({
     };
   }, [data]);
 
+  const handleBack = useCallback(() => onBack(), [onBack]);
+  const handleLogTrip = useCallback(() => onLogTrip(), [onLogTrip]);
+
   return (
     <Box sx={{ p: 2.25 }}>
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        sx={{ mb: 1 }}
-      >
-        <Button
-          onClick={onBack}
-          startIcon={<ArrowBackIosNewIcon fontSize="small" />}
-          size="small"
-        >
-          Back
-        </Button>
-      </Stack>
+      <Header onBack={handleBack} />
 
-      <Stack spacing={0.25} sx={{ mb: 1.5 }}>
-        <Typography variant="h6" fontWeight={800}>
-          Trip Summary
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {summary.miles.toLocaleString()} miles • ~ {summary.hh}h {summary.mm}m
-        </Typography>
-      </Stack>
+      <TripSummary
+        miles={summary.miles}
+        hours={summary.hh}
+        minutes={summary.mm}
+      />
 
       <Divider sx={{ my: 1 }} />
 
@@ -64,26 +51,83 @@ export default function TripResults({
       </Typography>
       <StopsTimeline stops={data.stops as any} />
 
-      {error && (
-        <Alert
-          severity="error"
-          icon={<WarningAmberIcon />}
-          sx={{ borderRadius: 2, mt: 1.5 }}
-        >
-          {error}
-        </Alert>
-      )}
+      <ErrorAlert error={error} />
 
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 2 }}>
-        <Button
-          variant="contained"
-          onClick={onLogTrip}
-          disabled={isSaving}
-          fullWidth
-        >
-          {isSaving ? "Saving…" : "Log This Trip"}
-        </Button>
-      </Stack>
+      <Actions isSaving={!!isSaving} onLogTrip={handleLogTrip} />
     </Box>
+  );
+}
+
+function Header({ onBack }: { onBack: () => void }) {
+  return (
+    <Stack
+      direction="row"
+      alignItems="center"
+      justifyContent="space-between"
+      sx={{ mb: 1 }}
+    >
+      <Button
+        onClick={onBack}
+        startIcon={<ArrowBackIosNewIcon fontSize="small" />}
+        size="small"
+      >
+        Back
+      </Button>
+    </Stack>
+  );
+}
+
+const TripSummary = memo(function TripSummary({
+  miles,
+  hours,
+  minutes,
+}: {
+  miles: number;
+  hours: number;
+  minutes: number;
+}) {
+  return (
+    <Stack spacing={0.25} sx={{ mb: 1.5 }}>
+      <Typography variant="h6" fontWeight={800}>
+        Trip Summary
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        {miles.toLocaleString()} miles • ~ {hours}h {minutes}m
+      </Typography>
+    </Stack>
+  );
+});
+
+function ErrorAlert({ error }: { error?: string | null }) {
+  if (!error) return null;
+  return (
+    <Alert
+      severity="error"
+      icon={<WarningAmberIcon />}
+      sx={{ borderRadius: 2, mt: 1.5 }}
+    >
+      {error}
+    </Alert>
+  );
+}
+
+function Actions({
+  isSaving,
+  onLogTrip,
+}: {
+  isSaving: boolean;
+  onLogTrip: () => void;
+}) {
+  return (
+    <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 2 }}>
+      <Button
+        variant="contained"
+        onClick={onLogTrip}
+        disabled={isSaving}
+        fullWidth
+      >
+        {isSaving ? "Saving…" : "Log This Trip"}
+      </Button>
+    </Stack>
   );
 }

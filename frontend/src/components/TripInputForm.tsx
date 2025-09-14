@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   Alert,
   Box,
@@ -9,6 +9,8 @@ import {
   Typography,
   Chip,
   Divider,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import LocationAutocomplete from "./LocationAutocomplete";
@@ -18,7 +20,6 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { TripCalcResponse } from "../lib/types";
 import { calculateTrip } from "../lib/trips";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
-import { IconButton, Tooltip } from "@mui/material";
 
 export type TripFormValues = {
   currentLocation: string;
@@ -57,10 +58,12 @@ export default function TripForm({
   const [isCalculating, setIsCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const set = (k: keyof TripFormValues, v: any) =>
-    setFormData((p) => ({ ...p, [k]: v }));
+  const setField = useCallback(
+    (k: keyof TripFormValues, v: any) => setFormData((p) => ({ ...p, [k]: v })),
+    []
+  );
 
-  const validate = () => {
+  const validate = useCallback(() => {
     if (
       !formData.currentLocation.trim() ||
       formData.currentLat == null ||
@@ -82,16 +85,80 @@ export default function TripForm({
     if (formData.currentCycleHours < 0 || formData.currentCycleHours > 70)
       return "Current cycle hours must be between 0 and 70";
     return null;
-  };
+  }, [formData]);
 
-  const cycleBadge = () => {
+  const cycleBadge = useCallback(() => {
     const h = formData.currentCycleHours;
     if (h >= 60) return { color: "error", text: "Critical - Near Limit" };
     if (h >= 50) return { color: "warning", text: "Warning - High Hours" };
     return { color: "primary", text: "Good - Within Limits" };
-  };
+  }, [formData.currentCycleHours]);
 
-  const calculate = async () => {
+  const handleCurrentLocChange = useCallback(
+    (v: string, sel?: { lat?: string | number; lon?: string | number }) => {
+      setField("currentLocation", v);
+      if (sel?.lat != null && sel?.lon != null) {
+        setField("currentLat", Number(sel.lat));
+        setField("currentLng", Number(sel.lon));
+      }
+    },
+    [setField]
+  );
+
+  const handlePickupChange = useCallback(
+    (v: string, sel?: { lat?: string | number; lon?: string | number }) => {
+      setField("pickupLocation", v);
+      if (sel?.lat != null && sel?.lon != null) {
+        setField("pickupLat", Number(sel.lat));
+        setField("pickupLng", Number(sel.lon));
+      }
+    },
+    [setField]
+  );
+
+  const handleDropoffChange = useCallback(
+    (v: string, sel?: { lat?: string | number; lon?: string | number }) => {
+      setField("dropoffLocation", v);
+      if (sel?.lat != null && sel?.lon != null) {
+        setField("dropoffLat", Number(sel.lat));
+        setField("dropoffLng", Number(sel.lon));
+      }
+    },
+    [setField]
+  );
+
+  const handleUseMyLocation = useCallback(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setField("currentLat", lat);
+        setField("currentLng", lng);
+        setField(
+          "currentLocation",
+          `Current Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`
+        );
+      },
+      () => {}
+    );
+  }, [setField]);
+
+  const handleCycleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setField("currentCycleHours", Number.parseInt(e.target.value) || 0);
+    },
+    [setField]
+  );
+
+  const handleNotesChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      setField("notes", e.target.value);
+    },
+    [setField]
+  );
+
+  const calculate = useCallback(async () => {
     const v = validate();
     if (v) return setError(v);
     setError(null);
@@ -117,9 +184,9 @@ export default function TripForm({
     } finally {
       setIsCalculating(false);
     }
-  };
+  }, [formData, onCalculated, validate]);
 
-  const clear = () => {
+  const clear = useCallback(() => {
     setFormData({
       currentLocation: "",
       pickupLocation: "",
@@ -129,7 +196,7 @@ export default function TripForm({
     });
     setError(null);
     onClear?.();
-  };
+  }, [onClear]);
 
   return (
     <Box sx={{ p: 2.5 }}>
@@ -145,7 +212,7 @@ export default function TripForm({
         </Typography>
       </Stack>
       <Stack>
-        <Divider sx={{ mb: 4 }}></Divider>
+        <Divider sx={{ mb: 4 }} />
       </Stack>
 
       <Stack spacing={2.5}>
@@ -160,37 +227,14 @@ export default function TripForm({
           <Box sx={{ display: "flex", gap: 2, width: "100%" }}>
             <LocationAutocomplete
               value={formData.currentLocation}
-              onChange={(v, sel) => {
-                set("currentLocation", v);
-                if (sel?.lat && sel?.lon) {
-                  set("currentLat", Number(sel.lat));
-                  set("currentLng", Number(sel.lon));
-                }
-              }}
+              onChange={handleCurrentLocChange}
               placeholder="Dallas, TX"
               size="small"
             />
             <Tooltip title="Use my current location">
               <IconButton
                 color="primary"
-                onClick={() => {
-                  if (!navigator.geolocation) return;
-                  navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                      const lat = pos.coords.latitude;
-                      const lng = pos.coords.longitude;
-                      set("currentLat", lat);
-                      set("currentLng", lng);
-                      set(
-                        "currentLocation",
-                        `Current Location (${lat.toFixed(4)}, ${lng.toFixed(
-                          4
-                        )})`
-                      );
-                    },
-                    () => {}
-                  );
-                }}
+                onClick={handleUseMyLocation}
                 sx={{ alignSelf: "flex-end", mb: 0.25 }}
                 size="small"
               >
@@ -201,7 +245,7 @@ export default function TripForm({
         </Stack>
 
         <Grid container spacing={1.5}>
-          <Grid item xs={12} md={6} sx={{ flex: 1 }}>
+          <Grid size={{ xs: 12, md: 6 }} sx={{ flex: 1 }}>
             <Stack spacing={0.75}>
               <Typography
                 variant="caption"
@@ -212,19 +256,13 @@ export default function TripForm({
               </Typography>
               <LocationAutocomplete
                 value={formData.pickupLocation}
-                onChange={(v, sel) => {
-                  set("pickupLocation", v);
-                  if (sel?.lat && sel?.lon) {
-                    set("pickupLat", Number(sel.lat));
-                    set("pickupLng", Number(sel.lon));
-                  }
-                }}
+                onChange={handlePickupChange}
                 placeholder="Houston, TX"
                 size="small"
               />
             </Stack>
           </Grid>
-          <Grid item xs={12} md={6} sx={{ flex: 1 }}>
+          <Grid size={{ xs: 12, md: 6 }} sx={{ flex: 1 }}>
             <Stack spacing={0.75}>
               <Typography
                 variant="caption"
@@ -235,13 +273,7 @@ export default function TripForm({
               </Typography>
               <LocationAutocomplete
                 value={formData.dropoffLocation}
-                onChange={(v, sel) => {
-                  set("dropoffLocation", v);
-                  if (sel?.lat && sel?.lon) {
-                    set("dropoffLat", Number(sel.lat));
-                    set("dropoffLng", Number(sel.lon));
-                  }
-                }}
+                onChange={handleDropoffChange}
                 placeholder="Miami, FL"
                 size="small"
               />
@@ -263,9 +295,7 @@ export default function TripForm({
               inputProps={{ min: 0, max: 70 }}
               placeholder="0"
               value={formData.currentCycleHours}
-              onChange={(e) =>
-                set("currentCycleHours", Number.parseInt(e.target.value) || 0)
-              }
+              onChange={handleCycleChange}
               size="small"
               fullWidth
             />
@@ -279,7 +309,7 @@ export default function TripForm({
           </Typography>
           <TextField
             value={formData.notes}
-            onChange={(e) => set("notes", e.target.value)}
+            onChange={handleNotesChange}
             size="small"
             multiline
             minRows={3}

@@ -1,5 +1,10 @@
-import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   Autocomplete,
   CircularProgress,
@@ -9,6 +14,9 @@ import {
   type TextFieldProps,
 } from "@mui/material";
 import { searchPlaces, type NomPlace } from "../lib/geocoding";
+import { useDebounced } from "../hooks/useDebounced";
+
+type Opt = NomPlace & { label: string };
 
 type Props = {
   value: string;
@@ -35,11 +43,11 @@ export default function LocationAutocomplete({
 }: Props) {
   const [input, setInput] = useState(value);
   const [loading, setLoading] = useState(false);
-  const [options, setOptions] = useState<Array<NomPlace & { label: string }>>(
-    []
-  );
+  const [options, setOptions] = useState<Opt[]>([]);
 
-  useEffect(() => setInput(value), [value]);
+  useEffect(() => {
+    setInput(value);
+  }, [value]);
 
   const debounced = useDebounced(input, 300);
 
@@ -51,12 +59,74 @@ export default function LocationAutocomplete({
     }
     setLoading(true);
     searchPlaces(debounced, 8)
-      .then((res) => active && setOptions(res))
-      .finally(() => active && setLoading(false));
+      .then((res) => {
+        if (active) setOptions(res);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
     return () => {
       active = false;
     };
   }, [debounced]);
+
+  const getOptionLabel = useCallback((opt: string | Opt) => {
+    return typeof opt === "string" ? opt : opt.label;
+  }, []);
+
+  const filterOptions = useCallback((x: Opt[]) => x, []);
+
+  const handleInputChange = useCallback(
+    (_: unknown, v: string) => {
+      setInput(v);
+      onChange(v);
+    },
+    [onChange]
+  );
+
+  const handleOptionChange = useCallback(
+    (_: unknown, v: string | Opt | null) => {
+      if (typeof v === "string") {
+        setInput(v);
+        onChange(v);
+        return;
+      }
+      if (v) {
+        setInput(v.label);
+        onChange(v.label, v);
+        return;
+      }
+      setInput("");
+      onChange("");
+    },
+    [onChange]
+  );
+
+  const renderInput = useCallback(
+    (params: any) => (
+      <TextField
+        {...params}
+        placeholder={placeholder}
+        size={size}
+        {...textFieldProps}
+        InputProps={{
+          ...params.InputProps,
+          endAdornment: (
+            <>
+              {loading ? <CircularProgress size={18} /> : null}
+              {params.InputProps.endAdornment}
+            </>
+          ),
+        }}
+      />
+    ),
+    [loading, placeholder, size, textFieldProps]
+  );
+
+  const noOptionsText = useMemo(
+    () => (debounced ? "No matches" : "Type to search"),
+    [debounced]
+  );
 
   return (
     <Stack spacing={0.75} sx={{ flex: 1 }}>
@@ -79,54 +149,15 @@ export default function LocationAutocomplete({
         handleHomeEndKeys
         fullWidth
         options={options}
-        getOptionLabel={(opt) => (typeof opt === "string" ? opt : opt.label)}
-        filterOptions={(x) => x}
         value={input}
         inputValue={input}
-        onInputChange={(_, v) => {
-          setInput(v);
-          onChange(v);
-        }}
-        onChange={(_, v) => {
-          if (typeof v === "string") {
-            setInput(v);
-            onChange(v);
-          } else if (v) {
-            setInput(v.label);
-            onChange(v.label, v);
-          } else {
-            setInput("");
-            onChange("");
-          }
-        }}
-        renderInput={(params) => (
-          <TextField
-            {...params}
-            placeholder={placeholder}
-            size={size}
-            {...textFieldProps}
-            InputProps={{
-              ...params.InputProps,
-              endAdornment: (
-                <>
-                  {loading ? <CircularProgress size={18} /> : null}
-                  {params.InputProps.endAdornment}
-                </>
-              ),
-            }}
-          />
-        )}
-        noOptionsText={debounced ? "No matches" : "Type to search"}
+        getOptionLabel={getOptionLabel}
+        filterOptions={filterOptions}
+        onInputChange={handleInputChange}
+        onChange={handleOptionChange}
+        renderInput={renderInput}
+        noOptionsText={noOptionsText}
       />
     </Stack>
   );
-}
-
-function useDebounced<T>(value: T, delay = 300): T {
-  const [v, setV] = useState(value);
-  useEffect(() => {
-    const id = setTimeout(() => setV(value), delay);
-    return () => clearTimeout(id);
-  }, [value, delay]);
-  return v;
 }

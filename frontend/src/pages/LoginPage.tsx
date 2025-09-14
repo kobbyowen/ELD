@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, memo } from "react";
 import {
   Alert,
   Box,
@@ -24,19 +24,33 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-    try {
-      await login(email, password);
-      navigate("/dashboard", { replace: true });
-    } catch (err: any) {
-      setError(err?.message || "An error occurred");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const handleEmail = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+  }, []);
+
+  const handlePassword = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setPwd(e.target.value);
+    },
+    []
+  );
+
+  const handleLogin = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      setError(null);
+      setIsLoading(true);
+      try {
+        await login(email, password);
+        navigate("/dashboard", { replace: true });
+      } catch (err: any) {
+        setError(err?.message || "An error occurred");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [email, password, login, navigate]
+  );
 
   return (
     <Container
@@ -52,33 +66,10 @@ export default function LoginPage() {
       <Box sx={{ width: "100%" }}>
         <Card
           elevation={2}
-          sx={{
-            bgcolor: "background.paper",
-            borderRadius: 3,
-          }}
+          sx={{ bgcolor: "background.paper", borderRadius: 3 }}
         >
           <CardHeader
-            title={
-              <Stack alignItems="center" spacing={1}>
-                <Stack direction="row" alignItems="center" spacing={1}>
-                  <LocalShippingIcon sx={{ color: "primary.main" }} />
-                  <Typography
-                    variant="h5"
-                    fontWeight={700}
-                    color="text.primary"
-                  >
-                    ELD Login
-                  </Typography>
-                </Stack>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  align="center"
-                >
-                  Enter your credentials to access your ELD dashboard
-                </Typography>
-              </Stack>
-            }
+            title={<HeaderTitle />}
             sx={{ textAlign: "center", pb: 0, pt: 4 }}
           />
           <CardContent sx={{ pt: 3, pb: 4 }}>
@@ -86,36 +77,30 @@ export default function LoginPage() {
               <Stack spacing={3}>
                 {error && <Alert severity="error">{error}</Alert>}
 
-                <Stack spacing={1}>
-                  <Typography variant="caption" color="text.secondary">
-                    Email
-                  </Typography>
+                <LabeledField label="Email">
                   <TextField
                     id="email"
                     type="email"
                     placeholder="driver@company.com"
                     required
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={handleEmail}
                     fullWidth
                     size="medium"
                   />
-                </Stack>
+                </LabeledField>
 
-                <Stack spacing={1}>
-                  <Typography variant="caption" color="text.secondary">
-                    Password
-                  </Typography>
+                <LabeledField label="Password">
                   <TextField
                     id="password"
                     type="password"
                     required
                     value={password}
-                    onChange={(e) => setPwd(e.target.value)}
+                    onChange={handlePassword}
                     fullWidth
                     size="medium"
                   />
-                </Stack>
+                </LabeledField>
 
                 <Button
                   type="submit"
@@ -128,7 +113,7 @@ export default function LoginPage() {
               </Stack>
 
               <Typography variant="body2" align="center" sx={{ mt: 3 }}>
-                {"Don't have an account? "}{" "}
+                {"Don't have an account? "}
                 <Button
                   component={RouterLink}
                   to="/auth/sign-up"
@@ -143,5 +128,38 @@ export default function LoginPage() {
         </Card>
       </Box>
     </Container>
+  );
+}
+
+const HeaderTitle = memo(function HeaderTitle() {
+  return (
+    <Stack alignItems="center" spacing={1}>
+      <Stack direction="row" alignItems="center" spacing={1}>
+        <LocalShippingIcon sx={{ color: "primary.main" }} />
+        <Typography variant="h5" fontWeight={700} color="text.primary">
+          ELD Login
+        </Typography>
+      </Stack>
+      <Typography variant="body2" color="text.secondary" align="center">
+        Enter your credentials to access your ELD dashboard
+      </Typography>
+    </Stack>
+  );
+});
+
+function LabeledField({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Stack spacing={1}>
+      <Typography variant="caption" color="text.secondary">
+        {label}
+      </Typography>
+      {children}
+    </Stack>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { Box, IconButton } from "@mui/material";
 import maplibregl, { Map } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -8,7 +8,6 @@ import { Navigate } from "react-router-dom";
 import TripForm, { type TripFormValues } from "../components/TripInputForm";
 import TripResults from "../components/TripResults";
 import type { TripCalcResponse } from "../lib/types";
-import { calculateTrip } from "../lib/trips";
 
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
@@ -32,11 +31,72 @@ function PlannerScreen() {
   const [isSaving, setIsSaving] = useState(false);
 
   const [open, setOpen] = useState(true);
-  const panelWidth = { xs: "100%", sm: 420, md: 0.34 * window.innerWidth };
-  const toggle = () => setOpen((o) => !o);
+
+  const togglePanel = useCallback(() => setOpen((o) => !o), []);
+  const backToForm = useCallback(() => setCalcData(null), []);
+  const onCalculated = useCallback(
+    (resp: TripCalcResponse, v: TripFormValues) => {
+      setCalcData(resp);
+      setValues(v);
+    },
+    []
+  );
+
+  const logTrip = useCallback(async () => {
+    setIsSaving(true);
+    try {
+      // TODO: persist trip
+    } catch (e: any) {
+      setError(e?.message || "Failed to save trip");
+    } finally {
+      setIsSaving(false);
+    }
+  }, []);
+
+  const routeFeature = useMemo(
+    () =>
+      calcData
+        ? {
+            type: "Feature" as const,
+            geometry: calcData.route.geometry,
+            properties: {},
+          }
+        : {
+            type: "Feature" as const,
+            geometry: { type: "LineString", coordinates: [] as any[] },
+            properties: {},
+          },
+    [calcData]
+  );
+
+  const stopsFeatureCollection = useMemo(
+    () =>
+      calcData
+        ? {
+            type: "FeatureCollection" as const,
+            features: calcData.stops.map((s) => ({
+              type: "Feature" as const,
+              geometry: {
+                type: "Point" as const,
+                coordinates: [s.coord.lng, s.coord.lat] as [number, number],
+              },
+              properties: {
+                id: s.id,
+                type: s.type,
+                title: (s.poi?.name || s.type).toString(),
+                subtitle: `${new Date(s.etaIso).toLocaleString()} • ${
+                  s.durationMin
+                }m`,
+              },
+            })),
+          }
+        : { type: "FeatureCollection" as const, features: [] },
+    [calcData]
+  );
 
   useEffect(() => {
     if (!mapEl.current) return;
+
     const m = new maplibregl.Map({
       container: mapEl.current,
       style: {
@@ -54,6 +114,7 @@ function PlannerScreen() {
       center: [-96, 37.8],
       zoom: 4,
     });
+
     m.addControl(
       new maplibregl.NavigationControl({ visualizePitch: true }),
       "bottom-right"
@@ -65,7 +126,6 @@ function PlannerScreen() {
       }),
       "bottom-right"
     );
-    mapRef.current = m;
 
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -80,60 +140,70 @@ function PlannerScreen() {
     }
 
     m.on("load", () => {
-      m.addSource("route", {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] },
-      });
-      m.addLayer({
-        id: "route-line",
-        type: "line",
-        source: "route",
-        paint: { "line-color": "#2563eb", "line-width": 4 },
-      });
-
-      m.addSource("stops", {
-        type: "geojson",
-        data: { type: "FeatureCollection", features: [] },
-      });
-      m.addLayer({
-        id: "stops-dots",
-        type: "circle",
-        source: "stops",
-        paint: {
-          "circle-radius": 6,
-          "circle-color": [
-            "match",
-            ["get", "type"],
-            "pickup",
-            "#10b981",
-            "dropoff",
-            "#f59e0b",
-            "break",
-            "#22c55e",
-            "rest",
-            "#ef4444",
-            "fuel",
-            "#06b6d4",
-            "#64748b",
-          ],
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#fff",
-        },
-      });
-      m.addLayer({
-        id: "stops-labels",
-        type: "symbol",
-        source: "stops",
-        layout: {
-          "text-field": ["get", "type"],
-          "text-size": 11,
-          "text-offset": [0, 1.1],
-          "text-anchor": "top",
-        },
-        paint: { "text-color": "#111827" },
-      });
+      if (!m.getSource("route")) {
+        m.addSource("route", {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] },
+        });
+      }
+      if (!m.getLayer("route-line")) {
+        m.addLayer({
+          id: "route-line",
+          type: "line",
+          source: "route",
+          paint: { "line-color": "#2563eb", "line-width": 4 },
+        });
+      }
+      if (!m.getSource("stops")) {
+        m.addSource("stops", {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: [] },
+        });
+      }
+      if (!m.getLayer("stops-dots")) {
+        m.addLayer({
+          id: "stops-dots",
+          type: "circle",
+          source: "stops",
+          paint: {
+            "circle-radius": 6,
+            "circle-color": [
+              "match",
+              ["get", "type"],
+              "pickup",
+              "#10b981",
+              "dropoff",
+              "#f59e0b",
+              "break",
+              "#22c55e",
+              "rest",
+              "#ef4444",
+              "fuel",
+              "#06b6d4",
+              "#64748b",
+            ],
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "#fff",
+          },
+        });
+      }
+      if (!m.getLayer("stops-labels")) {
+        m.addLayer({
+          id: "stops-labels",
+          type: "symbol",
+          source: "stops",
+          layout: {
+            "text-field": ["get", "type"],
+            "text-size": 11,
+            "text-offset": [0, 1.1],
+            "text-anchor": "top",
+          },
+          paint: { "text-color": "#111827" },
+        });
+      }
     });
 
+    mapRef.current = m;
     return () => {
       mapRef.current?.remove();
       mapRef.current = null;
@@ -142,40 +212,28 @@ function PlannerScreen() {
 
   useEffect(() => {
     const m = mapRef.current;
-    if (!m || !calcData) return;
-    (m.getSource("route") as any)?.setData({
-      type: "Feature",
-      geometry: calcData.route.geometry,
-      properties: {},
-    });
-    (m.getSource("stops") as any)?.setData({
-      type: "FeatureCollection",
-      features: calcData.stops.map((s) => ({
-        type: "Feature",
-        geometry: { type: "Point", coordinates: [s.coord.lng, s.coord.lat] },
-        properties: {
-          id: s.id,
-          type: s.type,
-          title: (s.poi?.name || s.type).toString(),
-          subtitle: `${new Date(s.etaIso).toLocaleString()} • ${
-            s.durationMin
-          }m`,
-        },
-      })),
-    });
+    if (!m) return;
+    const route = m.getSource("route") as any;
+    const stops = m.getSource("stops") as any;
+    route?.setData(routeFeature);
+    stops?.setData(stopsFeatureCollection);
 
-    const coords = [
-      ...calcData.route.geometry.coordinates,
-      ...calcData.stops.map(
-        (s) => [s.coord.lng, s.coord.lat] as [number, number]
-      ),
-    ];
-    const lons = coords.map((c) => c[0]);
-    const lats = coords.map((c) => c[1]);
-    const min: [number, number] = [Math.min(...lons), Math.min(...lats)];
-    const max: [number, number] = [Math.max(...lons), Math.max(...lats)];
-    m.fitBounds([min, max], { padding: 56, duration: 400 });
-  }, [calcData]);
+    if (calcData) {
+      const coords = [
+        ...calcData.route.geometry.coordinates,
+        ...calcData.stops.map(
+          (s) => [s.coord.lng, s.coord.lat] as [number, number]
+        ),
+      ];
+      if (coords.length) {
+        const lons = coords.map((c) => c[0]);
+        const lats = coords.map((c) => c[1]);
+        const min: [number, number] = [Math.min(...lons), Math.min(...lats)];
+        const max: [number, number] = [Math.max(...lons), Math.max(...lats)];
+        m.fitBounds([min, max], { padding: 56, duration: 400 });
+      }
+    }
+  }, [calcData, routeFeature, stopsFeatureCollection]);
 
   useEffect(() => {
     const m = mapRef.current;
@@ -184,25 +242,6 @@ function PlannerScreen() {
     panelRef.current.addEventListener("transitionend", onDone);
     return () => panelRef.current?.removeEventListener("transitionend", onDone);
   }, []);
-
-  const onCalculated = (resp: TripCalcResponse, v: TripFormValues) => {
-    setCalcData(resp);
-    setValues(v);
-  };
-  const backToForm = () => setCalcData(null);
-
-  const logTrip = async () => {
-    setIsSaving(true);
-    try {
-      // TODO: persist trip
-    } catch (e: any) {
-      setError(e?.message || "Failed to save trip");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleLeft = open ? 0 : -1; // keep in DOM when closed for smooth animation
 
   return (
     <Box sx={{ position: "fixed", inset: 0 }}>
@@ -213,7 +252,7 @@ function PlannerScreen() {
         sx={{
           position: "fixed",
           top: 0,
-          left: handleLeft,
+          left: 0,
           height: "100vh",
           width: { xs: "100%", sm: "420px", md: "34vw" },
           maxWidth: 520,
@@ -247,13 +286,13 @@ function PlannerScreen() {
       </Box>
 
       <IconButton
-        onClick={toggle}
+        onClick={togglePanel}
         size="small"
         sx={{
           position: "fixed",
           top: "50%",
           transform: "translateY(-50%)",
-          left: open ? "500px" : 8,
+          left: open ? { xs: "calc(100% - 44px)", sm: "420px", md: "34vw" } : 8,
           transition: "left 360ms cubic-bezier(0.22, 1, 0.36, 1)",
           bgcolor: (t) => (t.palette.mode === "light" ? "white" : "grey.900"),
           border: (t) => `1px solid ${t.palette.divider}`,

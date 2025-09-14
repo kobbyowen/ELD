@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, memo } from "react";
 import {
   Alert,
   Box,
@@ -31,70 +31,84 @@ export default function SignUpPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleInputChange = (field: keyof typeof formData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
+  const handleInputChange = useCallback(
+    (field: keyof typeof formData, value: string) => {
+      setFormData((prev) => ({ ...prev, [field]: value }));
+    },
+    []
+  );
+
+  const bindField = useCallback(
+    (field: keyof typeof formData) =>
+      (e: React.ChangeEvent<HTMLInputElement>) =>
+        handleInputChange(field, e.target.value),
+    [handleInputChange]
+  );
 
   const compactFieldProps = {
     size: "small" as const,
     margin: "dense" as const,
     fullWidth: true,
-    sx: {
-      // tighten the input’s vertical padding a bit more than default "small"
-      "& .MuiInputBase-input": { py: 0.75 }, // default ~0.875
-    },
+    sx: { "& .MuiInputBase-input": { py: 0.75 } },
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
+  const handleSignUp = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      setError(null);
 
-    if (!formData.firstName.trim()) return setError("First name is required");
-    if (!formData.lastName.trim()) return setError("Last name is required");
-    if (!formData.email.trim()) return setError("Email is required");
-    if (!formData.licenseNumber.trim())
-      return setError("CDL License Number is required");
-    if (formData.password.length < 6)
-      return setError("Password must be at least 6 characters");
-    if (formData.password !== formData.repeatPassword)
-      return setError("Passwords do not match");
+      if (!formData.firstName.trim()) return setError("First name is required");
+      if (!formData.lastName.trim()) return setError("Last name is required");
+      if (!formData.email.trim()) return setError("Email is required");
+      if (!formData.licenseNumber.trim())
+        return setError("CDL License Number is required");
+      if (formData.password.length < 6)
+        return setError("Password must be at least 6 characters");
+      if (formData.password !== formData.repeatPassword)
+        return setError("Passwords do not match");
 
-    setIsLoading(true);
-    try {
-      const res = await apiFetch("/auth/signup", {
-        method: "POST",
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          license_number: formData.licenseNumber,
-          carrier_name: formData.carrierName,
-        }),
-      });
-      if (!res.ok) {
-        let message = "Sign up failed";
-        try {
-          const data = await res.json();
-          if (data?.errors) {
-            const firstKey = Object.keys(data.errors)[0];
-            const firstMsg = Array.isArray(data.errors[firstKey])
-              ? data.errors[firstKey][0]
-              : data.errors[firstKey];
-            message = `${firstMsg}`;
-          } else {
-            message = data?.detail || data?.error || JSON.stringify(data);
+      setIsLoading(true);
+      try {
+        const res = await apiFetch("/auth/signup", {
+          method: "POST",
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            license_number: formData.licenseNumber,
+            carrier_name: formData.carrierName,
+          }),
+        });
+
+        if (!res.ok) {
+          let message = "Sign up failed";
+          try {
+            const data = await res.json();
+            if (data?.errors) {
+              const firstKey = Object.keys(data.errors)[0];
+              const firstMsg = Array.isArray(data.errors[firstKey])
+                ? data.errors[firstKey][0]
+                : data.errors[firstKey];
+              message = `${firstMsg}`;
+            } else {
+              message = data?.detail || data?.error || JSON.stringify(data);
+            }
+          } catch {
+            // keep default message
           }
-        } catch {}
-        throw new Error(message);
+          throw new Error(message);
+        }
+
+        navigate("/auth/login", { replace: true });
+      } catch (err: any) {
+        setError(err?.message || "An error occurred");
+      } finally {
+        setIsLoading(false);
       }
-      navigate("/auth/login", { replace: true });
-    } catch (err: any) {
-      setError(err?.message || "An error occurred");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+    [formData, navigate]
+  );
 
   return (
     <Container
@@ -113,159 +127,89 @@ export default function SignUpPage() {
           sx={{ bgcolor: "background.paper", borderRadius: 3 }}
         >
           <CardHeader
-            title={
-              <Stack alignItems="center" spacing={0.75}>
-                <Stack
-                  direction="row"
-                  alignItems="center"
-                  spacing={1}
-                  sx={{ mb: 0.25 }}
-                >
-                  <LocalShippingIcon sx={{ color: "primary.main" }} />
-                  <Typography
-                    variant="h6"
-                    fontWeight={700}
-                    color="text.primary"
-                  >
-                    Create ELD Account
-                  </Typography>
-                </Stack>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  align="center"
-                >
-                  Register as a professional driver
-                </Typography>
-              </Stack>
-            }
+            title={<HeaderTitle />}
             sx={{ textAlign: "center", pb: 0, pt: 3 }}
           />
           <CardContent sx={{ pt: 2, pb: 3 }}>
             <Box component="form" onSubmit={handleSignUp}>
               <Stack spacing={1.5}>
-                {/* Two-column name row */}
-                <Grid
-                  container
-                  spacing={1.5}
-                  sx={{
-                    flex: 1,
-                  }}
-                >
+                <Grid container spacing={1.5} sx={{ flex: 1 }}>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <Stack spacing={0.5}>
-                      <Typography variant="caption" color="text.secondary">
-                        First Name
-                      </Typography>
+                    <LabeledInput label="First Name">
                       <TextField
                         id="firstName"
                         required
                         value={formData.firstName}
-                        onChange={(e) =>
-                          handleInputChange("firstName", e.target.value)
-                        }
+                        onChange={bindField("firstName")}
                         {...compactFieldProps}
                       />
-                    </Stack>
+                    </LabeledInput>
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <Stack spacing={0.5}>
-                      <Typography variant="caption" color="text.secondary">
-                        Last Name
-                      </Typography>
+                    <LabeledInput label="Last Name">
                       <TextField
                         id="lastName"
                         required
                         value={formData.lastName}
-                        onChange={(e) =>
-                          handleInputChange("lastName", e.target.value)
-                        }
+                        onChange={bindField("lastName")}
                         {...compactFieldProps}
                       />
-                    </Stack>
+                    </LabeledInput>
                   </Grid>
                 </Grid>
 
-                {/* Email */}
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" color="text.secondary">
-                    Email
-                  </Typography>
+                <LabeledInput label="Email">
                   <TextField
                     id="email"
                     type="email"
                     placeholder="driver@company.com"
                     required
                     value={formData.email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
+                    onChange={bindField("email")}
                     {...compactFieldProps}
                   />
-                </Stack>
+                </LabeledInput>
 
-                {/* License */}
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" color="text.secondary">
-                    CDL License Number
-                  </Typography>
+                <LabeledInput label="CDL License Number">
                   <TextField
                     id="licenseNumber"
                     required
                     value={formData.licenseNumber}
-                    onChange={(e) =>
-                      handleInputChange("licenseNumber", e.target.value)
-                    }
+                    onChange={bindField("licenseNumber")}
                     {...compactFieldProps}
                   />
-                </Stack>
+                </LabeledInput>
 
-                {/* Carrier */}
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" color="text.secondary">
-                    Carrier/Company Name
-                  </Typography>
+                <LabeledInput label="Carrier/Company Name">
                   <TextField
                     id="carrierName"
                     value={formData.carrierName}
-                    onChange={(e) =>
-                      handleInputChange("carrierName", e.target.value)
-                    }
+                    onChange={bindField("carrierName")}
                     {...compactFieldProps}
                   />
-                </Stack>
+                </LabeledInput>
 
-                {/* Password */}
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" color="text.secondary">
-                    Password
-                  </Typography>
+                <LabeledInput label="Password">
                   <TextField
                     id="password"
                     type="password"
                     required
                     value={formData.password}
-                    onChange={(e) =>
-                      handleInputChange("password", e.target.value)
-                    }
+                    onChange={bindField("password")}
                     {...compactFieldProps}
                   />
-                </Stack>
+                </LabeledInput>
 
-                {/* Confirm */}
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" color="text.secondary">
-                    Confirm Password
-                  </Typography>
+                <LabeledInput label="Confirm Password">
                   <TextField
                     id="repeat-password"
                     type="password"
                     required
                     value={formData.repeatPassword}
-                    onChange={(e) =>
-                      handleInputChange("repeatPassword", e.target.value)
-                    }
+                    onChange={bindField("repeatPassword")}
                     {...compactFieldProps}
                   />
-                </Stack>
+                </LabeledInput>
 
                 {error && (
                   <Alert severity="error" sx={{ mt: 0.5 }}>
@@ -302,5 +246,38 @@ export default function SignUpPage() {
         </Card>
       </Box>
     </Container>
+  );
+}
+
+const HeaderTitle = memo(function HeaderTitle() {
+  return (
+    <Stack alignItems="center" spacing={0.75}>
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.25 }}>
+        <LocalShippingIcon sx={{ color: "primary.main" }} />
+        <Typography variant="h6" fontWeight={700} color="text.primary">
+          Create ELD Account
+        </Typography>
+      </Stack>
+      <Typography variant="body2" color="text.secondary" align="center">
+        Register as a professional driver
+      </Typography>
+    </Stack>
+  );
+});
+
+function LabeledInput({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Stack spacing={0.5}>
+      <Typography variant="caption" color="text.secondary">
+        {label}
+      </Typography>
+      {children}
+    </Stack>
   );
 }

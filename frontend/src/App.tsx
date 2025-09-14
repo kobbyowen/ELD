@@ -12,7 +12,7 @@ import { AuthProvider, useAuth } from "./auth/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import Dashboard from "./pages/Dashboard";
 import NewTripPage from "./pages/NewTripPage";
-import SignUpPage from "./pages/SIgnUpPage";
+import SignUpPage from "./pages/SignUpPage";
 
 const theme = createTheme();
 function Protected({ children }: { children: React.ReactElement }) {

@@ -1,4 +1,4 @@
-// src/components/StopsTimeline.tsx
+import { memo } from "react";
 import Timeline from "@mui/lab/Timeline";
 import TimelineItem from "@mui/lab/TimelineItem";
 import TimelineSeparator from "@mui/lab/TimelineSeparator";
@@ -12,6 +12,7 @@ import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import FreeBreakfastIcon from "@mui/icons-material/FreeBreakfast";
 import LocalGasStationIcon from "@mui/icons-material/LocalGasStation";
 import HotelIcon from "@mui/icons-material/Hotel";
+import type { JSX } from "react";
 
 type Stop = {
   id: string;
@@ -54,51 +55,68 @@ const fmtHM = (mins: number) => {
 export default function StopsTimeline({ stops }: { stops: Stop[] }) {
   return (
     <Timeline position="right" sx={{ m: 0, p: 0 }}>
-      {stops.map((s, i) => {
-        const title = cap(s.type);
-        const mins = `${s.durationMin}m`;
-        const paren = `(${fmtHM(s.durationMin)})`;
-        const when = new Date(s.etaIso).toLocaleString();
-
-        return (
-          <TimelineItem key={s.id} sx={{ "&::before": { flex: 0, p: 0 } }}>
-            <TimelineSeparator>
-              {i > 0 && <TimelineConnector />}
-              <TimelineDot color={colorFor[s.type]}>
-                {iconFor[s.type]}
-              </TimelineDot>
-              {i < stops.length - 1 && <TimelineConnector />}
-            </TimelineSeparator>
-
-            <TimelineContent sx={{ py: 1.25, pl: 1 }}>
-              <Typography variant="subtitle1" fontWeight={700}>
-                {title}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {mins} • {paren}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {when}
-              </Typography>
-
-              {s.poi?.name && (
-                <Box sx={{ mt: 0.5 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    {s.poi.name}
-                  </Typography>
-                </Box>
-              )}
-              {s.note && (
-                <Box sx={{ mt: 0.25 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    {s.note}
-                  </Typography>
-                </Box>
-              )}
-            </TimelineContent>
-          </TimelineItem>
-        );
-      })}
+      {stops.map((s, i) => (
+        <StopItem
+          key={s.id}
+          stop={s}
+          isFirst={i === 0}
+          isLast={i === stops.length - 1}
+        />
+      ))}
     </Timeline>
   );
 }
+
+const StopItem = memo(function StopItem({
+  stop,
+  isFirst,
+  isLast,
+}: {
+  stop: Stop;
+  isFirst: boolean;
+  isLast: boolean;
+}) {
+  const title = cap(stop.type);
+  const mins = `${stop.durationMin}m`;
+  const paren = `(${fmtHM(stop.durationMin)})`;
+  const when = new Date(stop.etaIso).toLocaleString();
+
+  return (
+    <TimelineItem sx={{ "&::before": { flex: 0, p: 0 } }}>
+      <TimelineSeparator>
+        {!isFirst && <TimelineConnector />}
+        <TimelineDot color={colorFor[stop.type]}>
+          {iconFor[stop.type]}
+        </TimelineDot>
+        {!isLast && <TimelineConnector />}
+      </TimelineSeparator>
+
+      <TimelineContent sx={{ py: 1.25, pl: 1 }}>
+        <Typography variant="subtitle1" fontWeight={700}>
+          {title}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {mins} • {title} {paren}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {when}
+        </Typography>
+
+        {stop.poi?.name && (
+          <Box sx={{ mt: 0.5 }}>
+            <Typography variant="caption" color="text.secondary">
+              {stop.poi.name}
+            </Typography>
+          </Box>
+        )}
+        {stop.note && (
+          <Box sx={{ mt: 0.25 }}>
+            <Typography variant="caption" color="text.secondary">
+              {stop.note}
+            </Typography>
+          </Box>
+        )}
+      </TimelineContent>
+    </TimelineItem>
+  );
+});
