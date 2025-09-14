@@ -59,7 +59,7 @@ export default function LocationAutocomplete({
   }, [debounced]);
 
   return (
-    <Stack spacing={0.75}>
+    <Stack spacing={0.75} sx={{ flex: 1 }}>
       {showLabel && (
         <Typography
           variant="caption"

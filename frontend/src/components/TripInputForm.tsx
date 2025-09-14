@@ -3,55 +3,62 @@ import {
   Alert,
   Box,
   Button,
-  Card,
-  CardContent,
-  CardHeader,
   Grid,
   Stack,
   TextField,
   Typography,
   Chip,
+  Divider,
 } from "@mui/material";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import LocationAutocomplete from "./LocationAutocomplete";
 import PlaceIcon from "@mui/icons-material/Place";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import { RoutePlanningService } from "../lib/route-planning";
-import type { RouteData, TripCalcResponse } from "../lib/types";
-import { RouteDisplay } from "./RouteDisplay";
+import type { TripCalcResponse } from "../lib/types";
 import { calculateTrip } from "../lib/trips";
-import { useAuth } from "../auth/AuthContext";
-import TripMap from "./TripMap";
+import MyLocationIcon from "@mui/icons-material/MyLocation";
+import { IconButton, Tooltip } from "@mui/material";
 
-type Props = {
-  onTripCreated?: (tripId: string) => void; // reserved for when we persist later
+export type TripFormValues = {
+  currentLocation: string;
+  currentLat?: number;
+  currentLng?: number;
+  pickupLocation: string;
+  pickupLat?: number;
+  pickupLng?: number;
+  dropoffLocation: string;
+  dropoffLat?: number;
+  dropoffLng?: number;
+  currentCycleHours: number;
+  notes: string;
 };
 
-export function TripInputForm({ onTripCreated }: Props) {
-  const { user } = useAuth();
+type Props = {
+  defaultValues?: Partial<TripFormValues>;
+  onCalculated: (resp: TripCalcResponse, values: TripFormValues) => void;
+  onClear?: () => void;
+};
 
-  const [formData, setFormData] = useState({
+export default function TripForm({
+  defaultValues,
+  onCalculated,
+  onClear,
+}: Props) {
+  const [formData, setFormData] = useState<TripFormValues>({
     currentLocation: "",
-    currentLat: undefined as number | undefined,
-    currentLng: undefined as number | undefined,
     pickupLocation: "",
-    pickupLat: undefined as number | undefined,
-    pickupLng: undefined as number | undefined,
     dropoffLocation: "",
-    dropoffLat: undefined as number | undefined,
-    dropoffLng: undefined as number | undefined,
     currentCycleHours: 0,
     notes: "",
+    ...defaultValues,
   });
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
+  const [isCalculating, setIsCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [calcData, setCalcData] = useState<TripCalcResponse | null>(null);
 
-  const handleChange = (field: keyof typeof formData, value: any) =>
-    setFormData((p) => ({ ...p, [field]: value }));
+  const set = (k: keyof TripFormValues, v: any) =>
+    setFormData((p) => ({ ...p, [k]: v }));
 
   const validate = () => {
     if (
@@ -84,11 +91,11 @@ export function TripInputForm({ onTripCreated }: Props) {
     return { color: "primary", text: "Good - Within Limits" };
   };
 
-  const handleCalculateRoute = async () => {
+  const calculate = async () => {
     const v = validate();
     if (v) return setError(v);
     setError(null);
-    setIsCalculatingRoute(true);
+    setIsCalculating(true);
     try {
       const payload = {
         currentLocation: {
@@ -104,208 +111,208 @@ export function TripInputForm({ onTripCreated }: Props) {
         startTimeIso: new Date().toISOString(),
       };
       const resp = await calculateTrip(payload);
-      setCalcData(resp);
+      onCalculated(resp, formData);
     } catch (e: any) {
       setError(e?.message || "Failed to calculate route");
     } finally {
-      setIsCalculatingRoute(false);
+      setIsCalculating(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const v = validate();
-    if (v) return setError(v);
-    if (!calcData) return setError("Please calculate the route first.");
-    setIsLoading(true);
-    try {
-      // TODO: POST to your trips endpoint to persist the trip; for now just invoke callback
-      onTripCreated?.("trip-id-placeholder");
-    } catch (e: any) {
-      setError(e?.message || "Failed to create trip");
-    } finally {
-      setIsLoading(false);
-    }
+  const clear = () => {
+    setFormData({
+      currentLocation: "",
+      pickupLocation: "",
+      dropoffLocation: "",
+      currentCycleHours: 0,
+      notes: "",
+    });
+    setError(null);
+    onClear?.();
   };
+
   return (
-    <div>
-      <Box sx={{ maxWidth: 720, mx: "auto", borderRadius: 2 }}>
-        <CardContent sx={{ pt: 2 }}>
-          <Box component="form" onSubmit={handleSubmit}>
-            <Stack spacing={2.5}>
-              <Stack spacing={0.75}>
-                <LocationAutocomplete
-                  value={formData.currentLocation}
-                  onChange={(val, sel) => {
-                    handleChange("currentLocation", val);
-                    if (sel?.lat && sel?.lon) {
-                      handleChange("currentLat", Number(sel.lat));
-                      handleChange("currentLng", Number(sel.lon));
-                    }
-                  }}
-                  placeholder="Dallas, TX"
-                  size="small"
-                  labelText="Current Location"
-                  labelIcon={<PlaceIcon fontSize="small" />}
-                />
-              </Stack>
+    <Box sx={{ p: 2.5 }}>
+      <Stack alignItems="center" spacing={1.5} mb={4} textAlign="center">
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <LocalShippingIcon sx={{ color: "primary.main", fontSize: 32 }} />
+          <Typography variant="h6" fontWeight={400}>
+            Create New Trip
+          </Typography>
+        </Stack>
+        <Typography variant="subtitle1" fontSize={14} color="text.secondary">
+          Plan your route and generate ELD-compliant logs
+        </Typography>
+      </Stack>
+      <Stack>
+        <Divider sx={{ mb: 4 }}></Divider>
+      </Stack>
 
-              <Grid container spacing={2}>
-                <Grid sx={{ xs: 12, md: 6, flex: 1 }}>
-                  <Stack spacing={0.75}>
-                    <LocationAutocomplete
-                      value={formData.pickupLocation}
-                      onChange={(val, sel) => {
-                        handleChange("pickupLocation", val);
-                        if (sel?.lat && sel?.lon) {
-                          handleChange("pickupLat", Number(sel.lat));
-                          handleChange("pickupLng", Number(sel.lon));
-                        }
-                      }}
-                      placeholder="Houston, TX"
-                      size="small"
-                      labelText="Pickup Location"
-                      labelIcon={
-                        <PlaceIcon fontSize="small" color="secondary" />
-                      }
-                    />
-                  </Stack>
-                </Grid>
-                <Grid sx={{ xs: 12, md: 6, flex: 1 }}>
-                  <Stack spacing={0.75}>
-                    <LocationAutocomplete
-                      value={formData.dropoffLocation}
-                      onChange={(val, sel) => {
-                        handleChange("dropoffLocation", val);
-                        if (sel?.lat && sel?.lon) {
-                          handleChange("dropoffLat", Number(sel.lat));
-                          handleChange("dropoffLng", Number(sel.lon));
-                        }
-                      }}
-                      placeholder="Miami, FL"
-                      size="small"
-                      labelText="Drop-off Location"
-                      labelIcon={<PlaceIcon fontSize="small" color="success" />}
-                    />
-                  </Stack>
-                </Grid>
-              </Grid>
+      <Stack spacing={2.5}>
+        <Stack spacing={0.75}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+          >
+            <PlaceIcon fontSize="small" /> Current Location
+          </Typography>
+          <Box sx={{ display: "flex", gap: 2, width: "100%" }}>
+            <LocationAutocomplete
+              value={formData.currentLocation}
+              onChange={(v, sel) => {
+                set("currentLocation", v);
+                if (sel?.lat && sel?.lon) {
+                  set("currentLat", Number(sel.lat));
+                  set("currentLng", Number(sel.lon));
+                }
+              }}
+              placeholder="Dallas, TX"
+              size="small"
+            />
+            <Tooltip title="Use my current location">
+              <IconButton
+                color="primary"
+                onClick={() => {
+                  if (!navigator.geolocation) return;
+                  navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                      const lat = pos.coords.latitude;
+                      const lng = pos.coords.longitude;
+                      set("currentLat", lat);
+                      set("currentLng", lng);
+                      set(
+                        "currentLocation",
+                        `Current Location (${lat.toFixed(4)}, ${lng.toFixed(
+                          4
+                        )})`
+                      );
+                    },
+                    () => {}
+                  );
+                }}
+                sx={{ alignSelf: "flex-end", mb: 0.25 }}
+                size="small"
+              >
+                <MyLocationIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </Stack>
 
-              <Stack spacing={0.75}>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
-                >
-                  <AccessTimeIcon fontSize="small" /> Current Cycle Hours
-                  (70-hour/8-day limit)
-                </Typography>
-                <Stack direction="row" spacing={1.5} alignItems="center">
-                  <TextField
-                    type="number"
-                    inputProps={{ min: 0, max: 70 }}
-                    placeholder="0"
-                    value={formData.currentCycleHours}
-                    onChange={(e) =>
-                      handleChange(
-                        "currentCycleHours",
-                        Number.parseInt(e.target.value) || 0
-                      )
-                    }
-                    size="small"
-                    fullWidth
-                  />
-                  <Chip
-                    color={cycleBadge().color as any}
-                    label={cycleBadge().text}
-                  />
-                </Stack>
-                <Typography variant="caption" color="text.secondary">
-                  Enter your current hours used in the 8-day cycle (max 70
-                  hours)
-                </Typography>
-              </Stack>
-
-              <Stack spacing={0.75}>
-                <Typography variant="caption" color="text.secondary">
-                  Additional Notes (Optional)
-                </Typography>
-                <TextField
-                  placeholder="Any special instructions or notes for this trip…"
-                  value={formData.notes}
-                  onChange={(e) => handleChange("notes", e.target.value)}
-                  size="small"
-                  multiline
-                  minRows={3}
-                  fullWidth
-                />
-              </Stack>
-
-              {error && (
-                <Alert
-                  severity="error"
-                  icon={<WarningAmberIcon />}
-                  sx={{ borderRadius: 2 }}
-                >
-                  {error}
-                </Alert>
-              )}
-
-              {/* Actions */}
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
-                <Button
-                  variant="outlined"
-                  onClick={handleCalculateRoute}
-                  disabled={isCalculatingRoute}
-                  fullWidth
-                >
-                  {isCalculatingRoute ? "Calculating…" : "Calculate Route"}
-                </Button>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  disabled={isLoading || !calcData}
-                  fullWidth
-                >
-                  {isLoading ? "Creating Trip…" : "Log Trip"}
-                </Button>
-                <Button
-                  variant="text"
-                  onClick={() => {
-                    setFormData({
-                      currentLocation: "",
-                      currentLat: undefined,
-                      currentLng: undefined,
-                      pickupLocation: "",
-                      pickupLat: undefined,
-                      pickupLng: undefined,
-                      dropoffLocation: "",
-                      dropoffLat: undefined,
-                      dropoffLng: undefined,
-                      currentCycleHours: 0,
-                      notes: "",
-                    });
-                    setError(null);
-                    setCalcData(null);
-                  }}
-                  fullWidth
-                >
-                  Clear
-                </Button>
-              </Stack>
+        <Grid container spacing={1.5}>
+          <Grid item xs={12} md={6} sx={{ flex: 1 }}>
+            <Stack spacing={0.75}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+              >
+                <PlaceIcon fontSize="small" color="secondary" /> Pickup Location
+              </Typography>
+              <LocationAutocomplete
+                value={formData.pickupLocation}
+                onChange={(v, sel) => {
+                  set("pickupLocation", v);
+                  if (sel?.lat && sel?.lon) {
+                    set("pickupLat", Number(sel.lat));
+                    set("pickupLng", Number(sel.lon));
+                  }
+                }}
+                placeholder="Houston, TX"
+                size="small"
+              />
             </Stack>
-          </Box>
-        </CardContent>
-      </Box>
+          </Grid>
+          <Grid item xs={12} md={6} sx={{ flex: 1 }}>
+            <Stack spacing={0.75}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+              >
+                <PlaceIcon fontSize="small" color="success" /> Drop-off Location
+              </Typography>
+              <LocationAutocomplete
+                value={formData.dropoffLocation}
+                onChange={(v, sel) => {
+                  set("dropoffLocation", v);
+                  if (sel?.lat && sel?.lon) {
+                    set("dropoffLat", Number(sel.lat));
+                    set("dropoffLng", Number(sel.lon));
+                  }
+                }}
+                placeholder="Miami, FL"
+                size="small"
+              />
+            </Stack>
+          </Grid>
+        </Grid>
 
-      {calcData && (
-        <Box sx={{ maxWidth: 1100, mx: "auto" }}>
-          <RouteDisplay data={calcData} />
-          <Box sx={{ mt: 2 }}>
-            <TripMap data={calcData} height={480} />
-          </Box>
-        </Box>
-      )}
-    </div>
+        <Stack spacing={0.75}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+          >
+            <AccessTimeIcon fontSize="small" /> Current Cycle Hours (70/8)
+          </Typography>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <TextField
+              type="number"
+              inputProps={{ min: 0, max: 70 }}
+              placeholder="0"
+              value={formData.currentCycleHours}
+              onChange={(e) =>
+                set("currentCycleHours", Number.parseInt(e.target.value) || 0)
+              }
+              size="small"
+              fullWidth
+            />
+            <Chip color={cycleBadge().color as any} label={cycleBadge().text} />
+          </Stack>
+        </Stack>
+
+        <Stack spacing={0.75}>
+          <Typography variant="caption" color="text.secondary">
+            Notes (optional)
+          </Typography>
+          <TextField
+            value={formData.notes}
+            onChange={(e) => set("notes", e.target.value)}
+            size="small"
+            multiline
+            minRows={3}
+            fullWidth
+          />
+        </Stack>
+
+        {error && (
+          <Alert
+            severity="error"
+            icon={<WarningAmberIcon />}
+            sx={{ borderRadius: 2 }}
+          >
+            {error}
+          </Alert>
+        )}
+
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+          <Button
+            variant="contained"
+            onClick={calculate}
+            disabled={isCalculating}
+            fullWidth
+          >
+            {isCalculating ? "Calculating…" : "Calculate Route"}
+          </Button>
+        </Stack>
+        <Stack>
+          <Button variant="outlined" onClick={clear} fullWidth>
+            Clear Form
+          </Button>
+        </Stack>
+      </Stack>
+    </Box>
   );
 }
