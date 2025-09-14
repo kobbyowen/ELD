@@ -40,3 +40,55 @@ export type DailyLog = {
     created_at: string;
     updated_at: string;
 };
+
+export type RouteStopType = 'pickup' | 'dropoff' | 'fuel' | 'break' | 'rest';
+
+export type LatLng = { lat: number; lng: number };
+
+export type RouteStop = {
+    id: string;
+    type: RouteStopType;
+    coord: LatLng;
+    etaIso: string;
+    durationMin: number;
+    note?: string;
+};
+
+export type RouteData = {
+    polyline: LatLng[];
+    total_distance: number;   // miles
+    total_duration: number;   // minutes
+    stops: RouteStop[];
+};
+
+
+export type TripCalcRequest = {
+    currentLocation: LatLng;
+    pickupLocation: LatLng;
+    dropoffLocation: LatLng;
+    currentCycleUsedHours: number;
+    startTimeIso: string;
+};
+
+export type StopType = "pickup" | "break" | "fuel" | "rest" | "dropoff";
+
+export type TripStop = {
+    id: string;
+    type: StopType;
+    coord: LatLng;
+    etaIso: string;
+    durationMin: number;
+    poi?: { name?: string | null; tags?: Record<string, string> };
+    note?: string;
+};
+
+export type TripCalcResponse = {
+    route: {
+        geometry: { type: "LineString"; coordinates: [number, number][] };
+        distance_m: number;
+        duration_s: number;
+        bbox?: number[];
+    };
+    stops: TripStop[];
+    stats: Record<string, number>;
+};

@@ -289,7 +289,7 @@ export default function SignUpPage() {
                 Already have an account?{" "}
                 <Button
                   component={RouterLink}
-                  to="/login"
+                  to="/auth/login"
                   variant="text"
                   size="small"
                   sx={{ p: 0, minWidth: 0, textTransform: "none" }}

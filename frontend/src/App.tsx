@@ -11,6 +11,7 @@ import {
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import Dashboard from "./pages/Dashboard";
+import NewTripPage from "./pages/NewTripPage";
 import SignUpPage from "./pages/SIgnUpPage";
 
 const theme = createTheme();
@@ -18,17 +19,17 @@ function Protected({ children }: { children: React.ReactElement }) {
   const { authed } = useAuth();
   const location = useLocation();
   if (!authed)
-    return <Navigate to="/login" replace state={{ from: location }} />;
+    return <Navigate to="/auth/login" replace state={{ from: location }} />;
   return children;
 }
 
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/auth/login" element={<LoginPage />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/auth/sign-up" element={<SignUpPage />} />
+      <Route path="/trips/new" element={<NewTripPage />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
