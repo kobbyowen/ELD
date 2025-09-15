@@ -405,6 +405,7 @@ class TripListCreateView(APIView):
             extras={k: v for k, v in ser.validated_data.items() if k != "draft_id"},
         )
 
+        trip.save()
         files = render_and_store_logs(trip)
 
         out = TripSer(trip).data
