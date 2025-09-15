@@ -16,9 +16,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 
-COPY requirements.lock /app/requirements.lock
+COPY requirements.txt /app/requirements.txt
 RUN pip install --upgrade pip setuptools wheel \
- && pip install -r requirements.lock
+ && pip install -r requirements.text
 
 COPY . /app
 
