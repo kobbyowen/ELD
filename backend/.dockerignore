@@ -1,0 +1,29 @@
+# python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pytest_cache/
+*.egg-info/
+.venv/
+venv/
+
+# git & editor
+.git/
+.gitignore
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# build artifacts
+dist/
+build/
+
+# frontend (we don't need it in backend image)
+../frontend/
+node_modules/
+
+# media collected locally
+media/
