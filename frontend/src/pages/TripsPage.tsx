@@ -326,14 +326,11 @@ export default function TripsPage() {
                     const to = stripFirstName(
                       t?.calc_payload?.places?.dropoff?.name || "-"
                     );
-                    const date = t.extras?.log_date
-                      ? new Date(t.extras.log_date).toLocaleDateString()
-                      : "—";
                     const created = new Date(t.created_at).toLocaleString();
 
                     return (
                       <TableRow key={t.id} hover>
-                        <TableCell>{date}</TableCell>
+                        <TableCell>{created}</TableCell>
                         <TableCell>
                           <Typography component="span" fontWeight={600}>
                             {from}

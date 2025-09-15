@@ -11,6 +11,7 @@ import {
   Divider,
   IconButton,
   Tooltip,
+  Link,
 } from "@mui/material";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import LocationAutocomplete from "./LocationAutocomplete";
@@ -58,6 +59,7 @@ export default function TripForm({
 
   const [isCalculating, setIsCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tripResponse, setTripResponse] = useState(null);
 
   const setField = useCallback(
     (k: keyof TripFormValues, v: any) => setFormData((p) => ({ ...p, [k]: v })),
@@ -186,6 +188,7 @@ export default function TripForm({
         startTimeIso: new Date().toISOString(),
       };
       const resp = await calculateTrip(payload);
+      setTripResponse(resp);
       onCalculated(resp as unknown as TripCalcResponse, formData);
     } catch (e: any) {
       setError(e?.message || "Failed to calculate route");

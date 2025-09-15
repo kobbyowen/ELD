@@ -57,11 +57,9 @@ function PlannerScreen() {
     setIsSaving(true);
     setError(null);
     try {
-      await apiLogTrip({
+      return await apiLogTrip({
         draft_id: calcData.draft_id,
       });
-
-      // navigate("/trips", { replace: true });
     } catch (e: any) {
       setError(e?.message || "Failed to log trip");
     } finally {

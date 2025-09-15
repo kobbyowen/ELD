@@ -1,5 +1,13 @@
-import { useMemo, useCallback, memo } from "react";
-import { Box, Stack, Typography, Divider, Button, Alert } from "@mui/material";
+import { useMemo, useCallback, memo, useState } from "react";
+import {
+  Box,
+  Stack,
+  Typography,
+  Divider,
+  Button,
+  Alert,
+  Link,
+} from "@mui/material";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { TripCalcResponse } from "../lib/types";
@@ -20,6 +28,7 @@ export default function TripResults({
   error,
   isSaving,
 }: Props) {
+  const [trip, setTrip] = useState<any>();
   const summary = useMemo(() => {
     const miles = data.route.distance_m / 1609.344;
     const totalMin = Math.round(data.route.duration_s / 60);
@@ -32,7 +41,13 @@ export default function TripResults({
   }, [data]);
 
   const handleBack = useCallback(() => onBack(), [onBack]);
-  const handleLogTrip = useCallback(() => onLogTrip(), [onLogTrip]);
+  const handleLogTrip = useCallback(async () => {
+    const trip = await onLogTrip();
+    console.log("MMMM ", trip);
+    setTrip(trip);
+  }, [onLogTrip]);
+
+  console.log({ trip });
 
   return (
     <Box sx={{ p: 2.25 }}>
@@ -52,6 +67,12 @@ export default function TripResults({
       <StopsTimeline stops={data.stops as any} />
 
       <ErrorAlert error={error} />
+      {trip && (
+        <Alert severity="success" sx={{ borderRadius: 2, mt: 1.5 }}>
+          Trip has been logged successfully.
+          <Link href={`/trips/${trip.id}`}>View Trip</Link>
+        </Alert>
+      )}
 
       <Actions isSaving={!!isSaving} onLogTrip={handleLogTrip} />
     </Box>

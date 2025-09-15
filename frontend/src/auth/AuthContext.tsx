@@ -36,9 +36,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(fresh);
           localStorage.setItem("user", JSON.stringify(fresh));
         } else {
-          localStorage.removeItem("access_token");
-          localStorage.removeItem("refresh_token");
-          localStorage.removeItem("user");
+          //   localStorage.removeItem("access_token");
+          //   localStorage.removeItem("refresh_token");
+          //   localStorage.removeItem("user");
           setUser(null);
         }
       });

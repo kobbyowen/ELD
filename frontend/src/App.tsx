@@ -56,16 +56,7 @@ function AppRoutes() {
           </Protected>
         }
       />
-      <Route
-        path="/trips/:id"
-        element={
-          <Protected>
-            <TripViewPage />
-          </Protected>
-        }
-      />
-
-      <Route path="*" element={<Navigate to="/auth/login" replace />} />
+      <Route path="/trips/:id" element={<TripViewPage />} />
     </Routes>
   );
 }
