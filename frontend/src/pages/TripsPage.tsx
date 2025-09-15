@@ -29,6 +29,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import GetAppIcon from "@mui/icons-material/GetApp";
 import AddIcon from "@mui/icons-material/Add";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
+import DashboardIcon from "@mui/icons-material/Dashboard";
 import { apiFetch } from "../lib/api";
 
 function stripFirstName(locationName: string): string {
@@ -253,7 +254,18 @@ export default function TripsPage() {
             View, download, or delete your trips
           </Typography>
         </Box>
-
+        <Button
+          component={RouterLink}
+          to="/dashboard"
+          startIcon={<DashboardIcon />}
+          variant="outlined"
+          size="small"
+          sx={{
+            minWidth: 150,
+          }}
+        >
+          Dashboard
+        </Button>
         <Button
           component={RouterLink}
           to="/trips/new"

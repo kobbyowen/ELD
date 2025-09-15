@@ -111,7 +111,9 @@ export default function LoginPage() {
                   {isLoading ? "Signing in..." : "Sign In"}
                 </Button>
               </Stack>
-
+              <p style={{ fontSize: 10, color: "gray" }}>
+                Email: driver@company.com Password: secret123
+              </p>
               <Typography variant="body2" align="center" sx={{ mt: 3 }}>
                 {"Don't have an account? "}
                 <Button
