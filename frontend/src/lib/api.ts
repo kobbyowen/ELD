@@ -23,7 +23,11 @@ export async function apiFetch(path: string, opts: FetchOptions = {}) {
         headers: finalHeaders,
     });
 
-
+    if (res.status === 401) {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        localStorage.removeItem("user");
+    }
 
     return res;
 }
