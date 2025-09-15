@@ -1,14 +1,7 @@
-import React from "react";
 import { CssBaseline } from "@mui/material";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  Navigate,
-  useLocation,
-} from "react-router-dom";
-import { AuthProvider, useAuth } from "./auth/AuthContext";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./auth/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import Dashboard from "./pages/Dashboard";
 import NewTripPage from "./pages/NewTripPage";
@@ -17,13 +10,13 @@ import TripsPage from "./pages/TripsPage";
 import TripViewPage from "./pages/TripViewPage";
 
 const theme = createTheme();
-function Protected({ children }: { children: React.ReactElement }) {
-  const { authed } = useAuth();
-  const location = useLocation();
-  if (!authed)
-    return <Navigate to="/auth/login" replace state={{ from: location }} />;
-  return children;
-}
+// function Protected({ children }: { children: React.ReactElement }) {
+//   const { authed } = useAuth();
+//   const location = useLocation();
+//   if (!authed)
+//     return <Navigate to="/auth/login" replace state={{ from: location }} />;
+//   return children;
+// }
 
 function AppRoutes() {
   return (

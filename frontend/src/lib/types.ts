@@ -45,7 +45,7 @@ export type DailyLog = {
 
 export type RouteStopType = 'pickup' | 'dropoff' | 'fuel' | 'break' | 'rest';
 
-export type LatLng = { lat: number; lng: number, name: string };
+export type LatLng = { lat: number; lng: number, name?: string };
 
 export type RouteStop = {
     id: string;

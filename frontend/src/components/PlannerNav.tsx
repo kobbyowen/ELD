@@ -2,7 +2,6 @@ import * as React from "react";
 import { Box, Button, Stack, Divider } from "@mui/material";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import ListAltIcon from "@mui/icons-material/ListAlt";
-import AddLocationAltIcon from "@mui/icons-material/AddLocationAlt";
 import { Link as RouterLink } from "react-router-dom";
 
 export default function PlannerNav() {
