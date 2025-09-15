@@ -98,6 +98,7 @@ export default function TripForm({
   const handleCurrentLocChange = useCallback(
     (v: string, sel?: { lat?: string | number; lon?: string | number }) => {
       setField("currentLocation", v);
+
       if (sel?.lat != null && sel?.lon != null) {
         setField("currentLat", Number(sel.lat));
         setField("currentLng", Number(sel.lon));
@@ -169,17 +170,23 @@ export default function TripForm({
         currentLocation: {
           lat: formData.currentLat!,
           lng: formData.currentLng!,
+          name: formData.currentLocation!,
         },
-        pickupLocation: { lat: formData.pickupLat!, lng: formData.pickupLng! },
+        pickupLocation: {
+          lat: formData.pickupLat!,
+          lng: formData.pickupLng!,
+          name: formData.pickupLocation!,
+        },
         dropoffLocation: {
           lat: formData.dropoffLat!,
           lng: formData.dropoffLng!,
+          name: formData.dropoffLocation!,
         },
         currentCycleUsedHours: formData.currentCycleHours,
         startTimeIso: new Date().toISOString(),
       };
       const resp = await calculateTrip(payload);
-      onCalculated(resp, formData);
+      onCalculated(resp as unknown as TripCalcResponse, formData);
     } catch (e: any) {
       setError(e?.message || "Failed to calculate route");
     } finally {

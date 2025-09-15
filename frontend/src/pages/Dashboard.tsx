@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, memo } from "react";
+import { useMemo, useState, useCallback, memo, useEffect } from "react";
 import {
   Alert,
   Box,
@@ -30,12 +30,29 @@ import { Link as RouterLink } from "react-router-dom";
 import type { Trip, DailyLog, Driver } from "../lib/types";
 import { ELDLogEngine } from "../lib/eld-engine";
 import { UserAvatarMenu } from "../components/UserAvatarMenu";
+import { apiFetch } from "../lib/api";
 
 type TabValue = "trips" | "logs" | "compliance";
 type Props = { driver?: Driver };
 
+type DashboardStats = {
+  totalTrips: number;
+  activeTrips: number;
+  completedTrips: number;
+  currentCycleHours: number;
+  complianceRate: number;
+  violationsThisWeek: number;
+};
+
+type AnalyticsResponse = {
+  stats: DashboardStats;
+  recentTrips: Trip[];
+  recentLogs: DailyLog[];
+  driver?: Partial<Driver>;
+};
+
 export default function Dashboard({ driver }: Props) {
-  const currentDriver: Driver = useMemo(
+  const fallbackDriver: Driver = useMemo(
     () =>
       driver ?? {
         id: "drv-1",
@@ -46,85 +63,54 @@ export default function Dashboard({ driver }: Props) {
     [driver]
   );
 
-  const [trips] = useState<Trip[]>([
-    {
-      id: "trip-1",
-      driver_id: currentDriver.id,
-      pickup_location: "Los Angeles, CA",
-      dropoff_location: "Phoenix, AZ",
-      status: "completed",
-      trip_distance: 372,
-      estimated_duration: 360,
-      current_cycle_hours: 45,
-      created_at: new Date(Date.now() - 86400000).toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    {
-      id: "trip-2",
-      driver_id: currentDriver.id,
-      pickup_location: "Phoenix, AZ",
-      dropoff_location: "Denver, CO",
-      status: "in_progress",
-      trip_distance: 602,
-      estimated_duration: 540,
-      current_cycle_hours: 52,
-      created_at: new Date(Date.now() - 43200000).toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-  ]);
-
-  const [recentLogs] = useState<DailyLog[]>([
-    {
-      id: "log-1",
-      driver_id: currentDriver.id,
-      log_date: new Date(Date.now() - 86400000).toISOString(),
-      total_driving_time: 480,
-      total_on_duty_time: 600,
-      total_off_duty_time: 840,
-      cycle_hours_used: 45,
-      is_compliant: true,
-      violations: [],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    {
-      id: "log-2",
-      driver_id: currentDriver.id,
-      log_date: new Date(Date.now() - 172800000).toISOString(),
-      total_driving_time: 540,
-      total_on_duty_time: 660,
-      total_off_duty_time: 780,
-      cycle_hours_used: 52,
-      is_compliant: false,
-      violations: [
-        {
-          type: "driving_time",
-          description: "Exceeded 11-hour driving limit",
-          severity: "high",
-          timestamp: new Date().toISOString(),
-        },
-      ],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-  ]);
-
-  const [stats] = useState({
-    totalTrips: trips.length,
-    activeTrips: trips.filter((t) => t.status === "in_progress").length,
-    completedTrips: trips.filter((t) => t.status === "completed").length,
-    currentCycleHours: 52,
-    complianceRate: 85,
-    violationsThisWeek: 1,
-  });
-
   const [tab, setTab] = useState<TabValue>("trips");
-  const [isLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [recentLogs, setRecentLogs] = useState<DailyLog[]>([]);
+  const [resolvedDriver, setResolvedDriver] = useState<Driver>(fallbackDriver);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const res = await apiFetch("/api/dashboard/analytics");
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(txt || "Failed to load analytics");
+        }
+        const data: AnalyticsResponse = await res.json();
+
+        if (!mounted) return;
+        setStats(data.stats);
+        setTrips(data.recentTrips ?? []);
+        setRecentLogs(data.recentLogs ?? []);
+
+        // prefer API-provided driver fields when available
+        setResolvedDriver(
+          (prev) =>
+            ({
+              ...prev,
+              ...(data.driver ?? {}),
+            } as Driver)
+        );
+      } catch (e: any) {
+        if (mounted) setError(e?.message || "Failed to load analytics");
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [fallbackDriver.id]);
 
   const handleTabChange = useCallback(
-    (_: React.SyntheticEvent, v: TabValue) => {
-      setTab(v);
-    },
+    (_: React.SyntheticEvent, v: TabValue) => setTab(v),
     []
   );
 
@@ -138,11 +124,32 @@ export default function Dashboard({ driver }: Props) {
     );
   }
 
+  if (error) {
+    return (
+      <Container maxWidth="lg" sx={{ py: 6, px: { xs: 2, sm: 3 } }}>
+        <Stack spacing={2}>
+          <Header driver={resolvedDriver} />
+          <Alert severity="error">{error}</Alert>
+        </Stack>
+      </Container>
+    );
+  }
+
+  // Safe fallbacks if API omitted something
+  const safeStats: DashboardStats = stats ?? {
+    totalTrips: trips.length,
+    activeTrips: trips.filter((t) => t.status === "in_progress").length,
+    completedTrips: trips.filter((t) => t.status === "completed").length,
+    currentCycleHours: 0,
+    complianceRate: 100,
+    violationsThisWeek: 0,
+  };
+
   return (
     <Container maxWidth="lg" sx={{ py: 6, px: { xs: 2, sm: 3 } }}>
-      <Header driver={currentDriver} />
+      <Header driver={resolvedDriver} />
 
-      <StatsGrid stats={stats} />
+      <StatsGrid stats={safeStats} />
 
       <Box
         sx={{
@@ -181,7 +188,7 @@ export default function Dashboard({ driver }: Props) {
 
         {tab === "trips" && <TripsTab trips={trips} />}
         {tab === "logs" && <LogsTab logs={recentLogs} />}
-        {tab === "compliance" && <ComplianceTab stats={stats} />}
+        {tab === "compliance" && <ComplianceTab stats={safeStats} />}
       </Box>
     </Container>
   );
@@ -244,7 +251,7 @@ const Header = memo(function Header({ driver }: { driver: Driver }) {
 
       <UserAvatarMenu
         firstName={driver.first_name}
-        lastName={""}
+        lastName={(driver as any)?.last_name || ""}
         email={(driver as any)?.email}
       />
     </Stack>
@@ -307,7 +314,7 @@ const StatsGrid = memo(function StatsGrid({
               {stats.currentCycleHours} / 70
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              {70 - stats.currentCycleHours} hours remaining
+              {Math.max(0, 70 - stats.currentCycleHours)} hours remaining
             </Typography>
           </CardContent>
         </Card>
@@ -369,7 +376,7 @@ const StatsGrid = memo(function StatsGrid({
   );
 });
 
-/* ---------- Tabs Content ---------- */
+/* ---------- Tabs Content (unchanged) ---------- */
 
 const TripsTab = memo(function TripsTab({ trips }: { trips: Trip[] }) {
   return (
@@ -425,10 +432,12 @@ const TripRow = memo(function TripRow({ trip }: { trip: Trip }) {
           <Chip
             size="small"
             color={statusColor(trip.status) as any}
-            label={trip.status.toUpperCase()}
+            label={trip.status?.toUpperCase?.() || "—"}
           />
           <Typography variant="caption" color="text.secondary">
-            {new Date(trip.created_at).toLocaleDateString()}
+            {trip.created_at
+              ? new Date(trip.created_at).toLocaleDateString()
+              : "—"}
           </Typography>
         </Stack>
         <Typography fontWeight={600}>
@@ -445,9 +454,11 @@ const TripRow = memo(function TripRow({ trip }: { trip: Trip }) {
               {ELDLogEngine.formatDuration(trip.estimated_duration)}
             </Typography>
           )}
-          <Typography variant="body2" color="text.secondary">
-            {trip.current_cycle_hours}h cycle
-          </Typography>
+          {trip.current_cycle_hours != null && (
+            <Typography variant="body2" color="text.secondary">
+              {trip.current_cycle_hours}h cycle
+            </Typography>
+          )}
         </Stack>
       </Box>
       <Button
@@ -661,7 +672,7 @@ const ComplianceTab = memo(function ComplianceTab({
                   fontWeight={700}
                   sx={{ color: cycleStatusColor(stats.currentCycleHours) }}
                 >
-                  {70 - stats.currentCycleHours}h
+                  {Math.max(0, 70 - stats.currentCycleHours)}h
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
                   Hours Remaining
@@ -729,8 +740,8 @@ const Recommendations = memo(function Recommendations({
             Critical: Near 70-hour limit
           </Typography>
           <Typography variant="caption">
-            You have only {70 - stats.currentCycleHours} hours remaining in your
-            8-day cycle.
+            You have only {Math.max(0, 70 - stats.currentCycleHours)} hours
+            remaining in your 8-day cycle.
           </Typography>
         </Alert>
       )}

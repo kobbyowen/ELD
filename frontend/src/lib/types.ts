@@ -1,3 +1,5 @@
+import { apiFetch } from "./api";
+
 export type Driver = {
     id: string;
     first_name: string;
@@ -13,28 +15,28 @@ export type Trip = {
     pickup_location: string;
     dropoff_location: string;
     status: TripStatus;
-    trip_distance?: number;       // miles
-    estimated_duration?: number;  // minutes
-    current_cycle_hours: number;  // hours used in 8-day cycle
-    created_at: string;           // ISO
-    updated_at: string;           // ISO
+    trip_distance?: number;
+    estimated_duration?: number;
+    current_cycle_hours: number;
+    created_at: string;
+    updated_at: string;
 };
 
 export type Violation = {
     type: 'driving_time' | 'on_duty' | 'break' | 'cycle' | string;
     description: string;
     severity: 'low' | 'medium' | 'high';
-    timestamp: string; // ISO
+    timestamp: string;
 };
 
 export type DailyLog = {
     id: string;
     driver_id: string;
-    log_date: string;           // ISO date
-    total_driving_time: number; // minutes
-    total_on_duty_time: number; // minutes
-    total_off_duty_time: number;// minutes
-    cycle_hours_used: number;   // hours
+    log_date: string;
+    total_driving_time: number;
+    total_on_duty_time: number;
+    total_off_duty_time: number;
+    cycle_hours_used: number;
     is_compliant: boolean;
     violations: Violation[];
     created_at: string;
@@ -43,7 +45,7 @@ export type DailyLog = {
 
 export type RouteStopType = 'pickup' | 'dropoff' | 'fuel' | 'break' | 'rest';
 
-export type LatLng = { lat: number; lng: number };
+export type LatLng = { lat: number; lng: number, name: string };
 
 export type RouteStop = {
     id: string;
@@ -56,8 +58,8 @@ export type RouteStop = {
 
 export type RouteData = {
     polyline: LatLng[];
-    total_distance: number;   // miles
-    total_duration: number;   // minutes
+    total_distance: number;
+    total_duration: number;
     stops: RouteStop[];
 };
 
@@ -83,6 +85,7 @@ export type TripStop = {
 };
 
 export type TripCalcResponse = {
+    draft_id: string
     route: {
         geometry: { type: "LineString"; coordinates: [number, number][] };
         distance_m: number;
@@ -91,4 +94,15 @@ export type TripCalcResponse = {
     };
     stops: TripStop[];
     stats: Record<string, number>;
+    places: { current: { name: string }, dropoff: { name: string }, pickup: { name: string } }
 };
+
+
+export async function calculateTrip(payload: unknown) {
+    const res = await apiFetch("/api/trips/calculate", {
+        method: "POST",
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error((await res.text()) || "Failed to calculate");
+    return res.json();
+}

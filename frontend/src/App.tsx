@@ -13,6 +13,8 @@ import LoginPage from "./pages/LoginPage";
 import Dashboard from "./pages/Dashboard";
 import NewTripPage from "./pages/NewTripPage";
 import SignUpPage from "./pages/SignUpPage";
+import TripsPage from "./pages/TripsPage";
+import TripViewPage from "./pages/TripViewPage";
 
 const theme = createTheme();
 function Protected({ children }: { children: React.ReactElement }) {
@@ -30,7 +32,9 @@ function AppRoutes() {
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/auth/sign-up" element={<SignUpPage />} />
       <Route path="/trips/new" element={<NewTripPage />} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/trips" element={<TripsPage />} />
+      <Route path="/trips/:id" element={<TripViewPage />} />
+      <Route path="*" element={<Navigate to="/auth/login" replace />} />
     </Routes>
   );
 }

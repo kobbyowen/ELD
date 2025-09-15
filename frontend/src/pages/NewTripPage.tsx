@@ -14,6 +14,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 import HomeIcon from "@mui/icons-material/Home";
 import { useNavigate } from "react-router-dom";
+import { logTrip as apiLogTrip } from "../lib/trips";
 
 const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
@@ -48,16 +49,25 @@ function PlannerScreen() {
 
   const goHome = useCallback(() => navigate("/dashboard"), [navigate]);
 
-  const logTrip = useCallback(async () => {
+  const logTrip = async () => {
+    if (!calcData?.draft_id) {
+      setError("Missing draft id. Please calculate again.");
+      return;
+    }
     setIsSaving(true);
+    setError(null);
     try {
-      // TODO: persist trip
+      await apiLogTrip({
+        draft_id: calcData.draft_id,
+      });
+
+      // navigate("/trips", { replace: true });
     } catch (e: any) {
-      setError(e?.message || "Failed to save trip");
+      setError(e?.message || "Failed to log trip");
     } finally {
       setIsSaving(false);
     }
-  }, []);
+  };
 
   const routeFeature = useMemo(
     () =>

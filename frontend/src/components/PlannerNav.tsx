@@ -45,16 +45,6 @@ export default function PlannerNav() {
             Trips
           </Button>
         </Stack>
-
-        {/* <Button
-          startIcon={<AddLocationAltIcon />}
-          variant="contained"
-          size="small"
-          disableElevation
-          disabled
-        >
-          New Trip
-        </Button> */}
       </Stack>
 
       <Divider sx={{ mt: 2 }} />
