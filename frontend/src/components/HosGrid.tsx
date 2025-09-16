@@ -18,6 +18,7 @@ type HosLogGridProps = {
   strokeColor?: string;
   tickColor?: string;
   trackStroke?: string;
+  isFirstDay?: boolean;
 };
 
 function parseIsoUTC(iso: string): Date {
@@ -28,23 +29,6 @@ function parseIsoUTC(iso: string): Date {
 const HOURS = 24;
 const LANE_ORDER: Array<Segment["status"]> = ["OFF", "SB", "DRIVING", "ONDUTY"];
 
-function timeToX(date: Date, x0: number, x1: number) {
-  const startDay = new Date(
-    Date.UTC(
-      date.getUTCFullYear(),
-      date.getUTCMonth(),
-      date.getUTCDate(),
-      0,
-      0,
-      0,
-      0
-    )
-  );
-  const msInDay = 24 * 60 * 60 * 1000;
-  const t = date.getTime() - startDay.getTime();
-  const frac = Math.min(Math.max(t / msInDay, 0), 1);
-  return x0 + frac * (x1 - x0);
-}
 function statusToLaneY(
   status: Segment["status"],
   graphTop: number,
@@ -58,6 +42,7 @@ function statusToLaneY(
   const yCenter = (yTop + yBottom) / 2;
   return { laneTop: yTop, laneBottom: yBottom, yCenter, laneHeight };
 }
+
 function fmtHHMM(totalMinutes: number) {
   const h = Math.floor(totalMinutes / 60);
   const m = Math.floor(totalMinutes % 60);
@@ -73,6 +58,7 @@ const HosLogGrid: React.FC<HosLogGridProps> = ({
   strokeColor = "#000",
   tickColor = "#000",
   trackStroke = "#1f6feb",
+  isFirstDay = false,
 }) => {
   const totalsGutter = 140;
   const marginLeft = 140;
@@ -97,6 +83,8 @@ const HosLogGrid: React.FC<HosLogGridProps> = ({
   const quarterTickEveryMin = 15;
   const tickStrokeWidth = 1;
 
+  const CONNECT_TOL_MS = 60 * 1000;
+
   const hourLabels: Record<number, string> = { 0: "Midnight", 12: "Noon" };
 
   const laneLines = [];
@@ -109,72 +97,110 @@ const HosLogGrid: React.FC<HosLogGridProps> = ({
     hourXs.push(graphLeft + (graphWidth / HOURS) * h);
   }
 
+  // Day window from bucket.date
+  let dayStartMs = 0;
+  let dayEndMs = 0;
+  if (day?.date) {
+    const [y, m, d] = day.date.split("-").map(Number);
+    const start = new Date(Date.UTC(y, (m || 1) - 1, d || 1, 0, 0, 0, 0));
+    dayStartMs = start.getTime();
+    dayEndMs = dayStartMs + 24 * 60 * 60 * 1000;
+  }
+
+  const mapMsToX = (ms: number) => {
+    // Clamp mapping strictly to [dayStart, dayEnd]
+    const clamped = Math.max(dayStartMs, Math.min(dayEndMs, ms));
+    const frac = (clamped - dayStartMs) / (dayEndMs - dayStartMs || 1);
+    return graphLeft + frac * graphWidth;
+  };
+
+  // Totals: count only the portion that overlaps this day
   const totalsMin: Record<Segment["status"], number> = {
     OFF: 0,
     SB: 0,
     DRIVING: 0,
     ONDUTY: 0,
   };
-  if (day?.segments?.length) {
+  if (day?.segments?.length && dayStartMs && dayEndMs) {
     for (const seg of day.segments) {
       const s = parseIsoUTC(seg.startIso).getTime();
       const e = parseIsoUTC(seg.endIso).getTime();
-      const mins = Math.max(0, Math.round((e - s) / 60000));
+      const startMs = Math.max(dayStartMs, Math.min(dayEndMs, s));
+      const endMs = Math.max(dayStartMs, Math.min(dayEndMs, e));
+      const mins = Math.max(0, Math.round((endMs - startMs) / 60000));
       totalsMin[seg.status] += mins;
     }
   }
 
-  const rendered: Array<React.JSX.Element> = [];
-  if (day?.segments?.length) {
-    const segs = [...day.segments].sort((a, b) =>
+  const horizontals: Array<React.JSX.Element> = [];
+  const connectors: Array<React.JSX.Element> = [];
+
+  if (day?.segments?.length && dayStartMs && dayEndMs) {
+    const [first, _, ...segs] = [...day.segments].sort((a, b) =>
       a.startIso.localeCompare(b.startIso)
     );
 
-    let prevEndX: number | null = null;
-    let prevEndY: number | null = null;
+    const display = (isFirstDay ? [first, ...segs] : [first, _, ...segs])
+      .map((seg, i) => {
+        const sMs = parseIsoUTC(seg.startIso).getTime();
+        const eMs = parseIsoUTC(seg.endIso).getTime();
+        const startMs = Math.max(dayStartMs, Math.min(dayEndMs, sMs));
+        const endMs = Math.max(dayStartMs, Math.min(dayEndMs, eMs));
+        if (endMs <= startMs) return null; // no overlap with the day
+        const x1 = mapMsToX(startMs);
+        const x2 = mapMsToX(endMs);
+        const { yCenter } = statusToLaneY(seg.status, lanesTop, lanesBottom);
+        return { i, seg, sMs, eMs, startMs, endMs, x1, x2, y: yCenter };
+      })
+      .filter(Boolean) as Array<{
+      i: number;
+      seg: Segment;
+      sMs: number;
+      eMs: number;
+      startMs: number;
+      endMs: number;
+      x1: number;
+      x2: number;
+      y: number;
+    }>;
 
-    segs.forEach((seg, i) => {
-      const s = parseIsoUTC(seg.startIso);
-      const e = parseIsoUTC(seg.endIso);
-      const x1 = timeToX(s, graphLeft, graphRight);
-      const x2 = timeToX(e, graphLeft, graphRight);
-      const { yCenter } = statusToLaneY(seg.status, lanesTop, lanesBottom);
-
-      if (
-        i > 0 &&
-        prevEndX !== null &&
-        Math.abs(x1 - prevEndX) < 0.5 &&
-        prevEndY !== null &&
-        prevEndY !== yCenter
-      ) {
-        rendered.push(
+    // Connect consecutive segments when the clamped end ~= next clamped start
+    for (let i = 0; i < display.length - 1; i++) {
+      const a = display[i];
+      const b = display[i + 1];
+      const gapMs = Math.abs(b.startMs - a.endMs);
+      if (gapMs <= CONNECT_TOL_MS && a.y !== b.y) {
+        const xJoin = b.x1; // join at next segment's exact start
+        connectors.push(
           <line
             key={`vlink-${i}`}
-            x1={x1}
-            x2={x1}
-            y1={prevEndY}
-            y2={yCenter}
+            x1={xJoin}
+            x2={xJoin}
+            y1={a.y}
+            y2={b.y}
             stroke={trackStroke}
-            strokeWidth={2}
+            strokeWidth={4}
+            strokeLinecap="round"
           />
         );
       }
-      rendered.push(
+    }
+
+    // Draw horizontals last so their rounded caps cover connector endpoints
+    for (const d of display) {
+      horizontals.push(
         <line
-          key={`seg-${i}`}
-          x1={x1}
-          x2={x2}
-          y1={yCenter}
-          y2={yCenter}
+          key={`seg-${d.i}`}
+          x1={d.x1}
+          x2={d.x2}
+          y1={d.y}
+          y2={d.y}
           stroke={trackStroke}
           strokeWidth={6}
           strokeLinecap="round"
         />
       );
-
-      prevEndX = x2;
-      prevEndY = yCenter;
-    });
+    }
   }
 
   return (
@@ -356,10 +382,12 @@ const HosLogGrid: React.FC<HosLogGridProps> = ({
           </g>
         ))}
 
-        {/* Continuous rendered tracks */}
-        {rendered}
+        {/* connectors behind */}
+        {connectors}
+        {/* horizontals on top */}
+        {horizontals}
 
-        {/* Totals gutter on the far right */}
+        {/* totals gutter */}
         <g
           transform={`translate(${graphRight + 12}, ${lanesTop})`}
           fontFamily="Inter, system-ui, Arial, sans-serif"

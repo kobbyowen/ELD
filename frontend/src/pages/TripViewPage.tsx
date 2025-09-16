@@ -17,7 +17,6 @@ import RoomIcon from "@mui/icons-material/Room";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import MapIcon from "@mui/icons-material/Map";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import ImageIcon from "@mui/icons-material/Image";
 import DescriptionIcon from "@mui/icons-material/Description";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import maplibregl, { Map as MlMap, type LngLatBoundsLike } from "maplibre-gl";
@@ -37,10 +36,8 @@ function stripFirstName(locationName: string): string {
 }
 
 type TripFileRef = {
-  page_index: number;
-  html_url: string;
-  pdf_url: string;
-  png_url: string;
+  html_zip_url: string;
+  pdf_zip_url: string;
 };
 
 export type TripDetail = {
@@ -49,7 +46,7 @@ export type TripDetail = {
   created_at: string;
   calc_payload: TripCalcResponse | null;
   extras?: Record<string, any> | null;
-  files?: TripFileRef[];
+  files?: TripFileRef;
 };
 
 function MiniTripMap({
@@ -238,10 +235,7 @@ export default function TripViewPage() {
     };
   }, [trip]);
 
-  const firstFile = useMemo<TripFileRef | undefined>(
-    () => trip?.files?.slice().sort((a, b) => a.page_index - b.page_index)[0],
-    [trip]
-  );
+  const firstFile = trip?.files;
 
   if (loading) {
     return (
@@ -288,39 +282,26 @@ export default function TripViewPage() {
         </Button>
 
         <Stack direction="row" spacing={1}>
-          {firstFile?.pdf_url && (
+          {firstFile?.pdf_zip_url && (
             <Button
               variant="outlined"
               size="small"
               startIcon={<PictureAsPdfIcon />}
               component="a"
-              href={firstFile.pdf_url}
+              href={firstFile.pdf_zip_url}
               target="_blank"
               rel="noopener noreferrer"
             >
               PDF
             </Button>
           )}
-          {firstFile?.png_url && (
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<ImageIcon />}
-              component="a"
-              href={firstFile.png_url}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Image
-            </Button>
-          )}
-          {firstFile?.html_url && (
+          {firstFile?.html_zip_url && (
             <Button
               variant="outlined"
               size="small"
               startIcon={<DescriptionIcon />}
               component="a"
-              href={firstFile.html_url}
+              href={firstFile.html_zip_url}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -473,24 +454,9 @@ export default function TripViewPage() {
           </Typography>
         </Box>
 
-        {firstFile?.html_url ? (
-          <Box sx={{ width: "100%", height: { xs: 900, md: 1000 } }}>
-            <iframe
-              title="Daily Log"
-              src={firstFile.html_url}
-              style={{
-                width: "100%",
-                height: "100%",
-                border: 0,
-                background: "#fff",
-              }}
-            />
-          </Box>
-        ) : (
-          <Box sx={{ p: 2 }}>
-            <TripHosLogs trip={trip} />
-          </Box>
-        )}
+        <Box sx={{ p: 2 }}>
+          <TripHosLogs trip={trip} />
+        </Box>
       </Box>
     </Container>
   );
@@ -507,7 +473,13 @@ function TripHosLogs({ trip }: { trip?: TripDetail }) {
             <Typography variant="h6" sx={{ mb: 1 }}>
               {day.date}
             </Typography>
-            <HosLogGrid day={day} width={2000} height={560} showTitle={false} />
+            <HosLogGrid
+              day={day}
+              width={2000}
+              height={560}
+              showTitle={false}
+              isFirstDay={idx === 0}
+            />
           </Box>
         ))}
       </Stack>
