@@ -136,6 +136,14 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CORS_ALLOW_ALL_ORIGINS = True
 
+#  SimpleJWT lifetimes (defaults are fine; customize if you want)
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60000),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=70),
+    "ROTATE_REFRESH_TOKENS": False,
+    "BLACKLIST_AFTER_ROTATION": True,
+}
+
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -144,5 +152,4 @@ REST_FRAMEWORK = {
 }
 
 
-MEDIA_URL = "/media/"
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+MEDIA_URL = os.path.join(BASE_DIR, "media") + "/"

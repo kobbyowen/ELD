@@ -84,6 +84,22 @@ export type TripStop = {
     note?: string;
 };
 
+export type SegmentStatus = "DRIVING" | "ONDUTY" | "OFF" | "SB";
+
+export type Segment = {
+    startIso: string;
+    endIso: string;
+    status: SegmentStatus;
+    label?: string;
+};
+
+export type DayBucket = {
+    date: string;
+    segments: Segment[];
+};
+
+type LocationType = { name: string, lng: number, lat: number }
+
 export type TripCalcResponse = {
     draft_id: string
     route: {
@@ -94,8 +110,10 @@ export type TripCalcResponse = {
     };
     stops: TripStop[];
     stats: Record<string, number>;
-    places: { current: { name: string }, dropoff: { name: string }, pickup: { name: string } }
-};
+    places: { current: LocationType, dropoff: LocationType, pickup: LocationType },
+    dayBuckets?: DayBucket[];
+}
+
 
 
 export async function calculateTrip(payload: unknown) {

@@ -1,261 +1,275 @@
-# trips/services/rendering.py
-from __future__ import annotations
-
-from dataclasses import dataclass
-from datetime import datetime, timedelta
-from io import BytesIO
-from pathlib import PurePosixPath
-from typing import Any
+import io
+import os
+import re
+import json
+import zipfile
+from datetime import datetime, timezone
+from typing import List, Dict, Any
 
 from django.conf import settings
-from django.core.files.base import ContentFile
-from django.core.files.storage import default_storage
 from django.template.loader import render_to_string
 
-from ..models import TripFile
+from weasyprint import HTML
+from PyPDF2 import PdfMerger
 
 
-try:
-    from weasyprint import HTML
-
-    HAS_WEASYPRINT = True
-except Exception:
-    HAS_WEASYPRINT = False
+def _ensure_dir(path: str) -> None:
+    os.makedirs(path, exist_ok=True)
 
 
-def _mi(meters: float) -> float:
-    return meters / 1609.344 if meters is not None else 0.0
+def _media_rel(*parts: str) -> str:
+    root = os.path.abspath(settings.MEDIA_ROOT)
+    safe_parts = [str(p).lstrip("/").strip() for p in parts]
+    return os.path.abspath(os.path.join(root, *safe_parts))
 
 
-def _build_display(calc: dict, extras: dict, page_meta: dict) -> dict:
-    """
-    Merge user-provided 'extras' with safe defaults from 'calc' for printing.
-    page_meta: {"date": "YYYY-MM-DD", "tz": "..."} so we can show that day’s date.
-    """
-    places = (calc or {}).get("places", {}) or {}
-
-    print(calc, extras, page_meta, places)
-
-    default_from = places.get("from", {}).get("name") or places.get("current", {}).get("name") or ""
-    default_to = places.get("to", {}).get("name") or places.get("dropoff", {}).get("name") or ""
-
-    dist_mi = round(_mi((calc.get("route") or {}).get("distance_m", 0.0)), 1)
-
-    d = {
-        "log_date": extras.get("log_date") or page_meta.get("date") or "",
-        "from_location": extras.get("from_location") or default_from,
-        "to_location": extras.get("to_location") or default_to,
-        "total_miles_driving_today": extras.get("total_miles_driving_today") or f"{dist_mi}",
-        "total_mileage_today": extras.get("total_mileage_today") or "",
-        "equipment_text": extras.get("equipment_text") or "",
-        "carrier_name": extras.get("carrier_name") or "",
-        "main_office_address": extras.get("main_office_address") or "",
-        "home_terminal_address": extras.get("home_terminal_address") or "",
-        "remarks": extras.get("remarks") or "",
-        "bl_or_manifest": extras.get("bl_or_manifest") or "",
-        "shipper_commodity": extras.get("shipper_commodity") or "",
-        "additional_notes": extras.get("additional_notes") or "",
-        "on_duty_hours_today": extras.get("on_duty_hours_today") or "",
-        "recap_70_a_last7_incl_today": extras.get("recap_70_a_last7_incl_today") or "",
-        "recap_70_b_available_tomorrow": extras.get("recap_70_b_available_tomorrow") or "",
-    }
-
-    print(d)
-
-    return d
+def _media_url(*parts: str) -> str:
+    return _media_rel(*parts)
 
 
-def _storage_path(trip_id, page_idx: int, ext: str) -> str:
-    return str(PurePosixPath("trips") / str(trip_id) / f"log-{page_idx}.{ext}")
+SEG_LANES = ("OFF", "SB", "DRIVING", "ONDUTY")
 
 
-def _save_storage(path: str, data: bytes) -> str:
-    if default_storage.exists(path):
-        default_storage.delete(path)
-    default_storage.save(path, ContentFile(data))
-    return path
+def _parse_iso(iso: str) -> datetime:
+    if iso.endswith("Z"):
+        dt = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+    else:
+        dt = datetime.fromisoformat(iso)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
-def _render_html_page(context: dict) -> bytes:
-
-    html = render_to_string("trips/daily_log.html", context)
-    return html.encode("utf-8")
+def _mins(dt_end: datetime, dt_start: datetime) -> int:
+    return max(0, int(round((dt_end - dt_start).total_seconds() / 60.0)))
 
 
-def _render_pdf_from_html(html_bytes: bytes, base_url: str) -> bytes | None:
-    if not HAS_WEASYPRINT:
-        return None
-    pdf_io = BytesIO()
-    HTML(string=html_bytes.decode("utf-8"), base_url=base_url).write_pdf(pdf_io)
-    return pdf_io.getvalue()
+def _fmt_hhmm(total_minutes: int) -> str:
+    h = total_minutes // 60
+    m = total_minutes % 60
+    return f"{h}:{m:02d}"
 
 
-def _render_png_from_html(html_bytes: bytes, base_url: str) -> bytes | None:
-    if not HAS_WEASYPRINT:
-        return None
+def _bucket_date_str(bucket: Dict[str, Any]) -> str:
+    return bucket.get("date", "")
+
+
+def _same_ymd(dt: datetime, ymd: str) -> bool:
     try:
-        png_io = BytesIO()
-        HTML(string=html_bytes.decode("utf-8"), base_url=base_url).write_png(png_io)
-        return png_io.getvalue()
+        y, m, d = map(int, ymd.split("-"))
+        return (dt.year, dt.month, dt.day) == (y, m, d)
     except Exception:
-        return None
+        return False
 
 
-def _parse_iso(s: str) -> datetime:
-
-    if s.endswith("Z"):
-        s = s[:-1] + "+00:00"
-    return datetime.fromisoformat(s)
-
-
-@dataclass
-class DayWindow:
-    local_start: datetime
-    local_end: datetime
-
-
-def _day_windows_for_stops(stops: list[dict[str, Any]], tzname: str) -> list[DayWindow]:
-    """Build contiguous 24h windows covering all stop ETAs, in the provided tz."""
-    from zoneinfo import ZoneInfo
-
-    tz = ZoneInfo(tzname)
-    if not stops:
-
-        now = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
-        return [DayWindow(now, now + timedelta(days=1))]
-
-    local_times = [_parse_iso(s["etaIso"]).astimezone(tz) for s in stops if "etaIso" in s]
-    start = min(local_times)
-    end = max(local_times)
-
-    first_midnight = start.replace(hour=0, minute=0, second=0, microsecond=0)
-    last_midnight = end.replace(hour=0, minute=0, second=0, microsecond=0)
-
-    windows: list[DayWindow] = []
-    cur = first_midnight
-    while cur <= last_midnight:
-        windows.append(DayWindow(cur, cur + timedelta(days=1)))
-        cur += timedelta(days=1)
-
-    return windows
+def _totals_by_lane(segments: List[Dict[str, Any]]) -> Dict[str, int]:
+    mins = {k: 0 for k in SEG_LANES}
+    for s in segments or []:
+        st = _parse_iso(s["startIso"])
+        en = _parse_iso(s["endIso"])
+        lane = s.get("status", "OFF")
+        if lane not in mins:
+            lane = "OFF"
+        mins[lane] += _mins(en, st)
+    return mins
 
 
-def _slice_stops_for_window(stops: list[dict[str, Any]], win: DayWindow, tzname: str) -> list[dict[str, Any]]:
-    """Return stops whose etaIso falls within the given 24h local window."""
-    from zoneinfo import ZoneInfo
+def _driving_minutes(segments: List[Dict[str, Any]]) -> int:
+    t = 0
+    for s in segments or []:
+        if s.get("status") == "DRIVING":
+            t += _mins(_parse_iso(s["endIso"]), _parse_iso(s["startIso"]))
+    return t
 
-    tz = ZoneInfo(tzname)
-    out: list[dict[str, Any]] = []
-    for s in stops:
-        dt = _parse_iso(s["etaIso"]).astimezone(tz)
-        if win.local_start <= dt < win.local_end:
-            out.append(s)
 
-    out.sort(key=lambda x: x["etaIso"])
+def _total_driving_minutes_whole_trip(day_buckets: List[Dict[str, Any]]) -> int:
+    return sum(_driving_minutes(b.get("segments", [])) for b in day_buckets or [])
+
+
+def _try_daily_miles(bucket: Dict[str, Any], calc: Dict[str, Any]) -> int:
+    total_m = calc.get("distance_m")
+    if not total_m:
+        return 0
+    total_miles = total_m / 1609.344
+    day_drv_min = _driving_minutes(bucket.get("segments", []))
+    all_drv_min = _total_driving_minutes_whole_trip(calc.get("dayBuckets", []))
+    if day_drv_min <= 0 or all_drv_min <= 0:
+        return 0
+    miles = (day_drv_min / all_drv_min) * total_miles
+    return int(round(miles))
+
+
+def _stops_to_remarks_for_day(stops: List[Dict[str, Any]], day_ymd: str) -> str:
+    def _label_for(stop: Dict[str, Any]) -> str:
+        t = stop.get("type", "").lower()
+        note = stop.get("note") or ""
+        if t == "start":
+            return "Start"
+        if t == "pickup":
+            return "Pickup"
+        if t == "dropoff":
+            return "Dropoff"
+        if t == "break":
+            return "Break"
+        if t == "rest":
+            return "Rest"
+        if t == "fuel":
+            return "Fuel"
+        return note or t.capitalize()
+
+    parts = []
+    for s in stops or []:
+        try:
+            dt = _parse_iso(s["etaIso"])
+            if _same_ymd(dt, day_ymd):
+                parts.append(f'{_label_for(s)} {dt.strftime("%H:%M")}')
+        except Exception:
+            continue
+    return " • ".join(parts)
+
+
+def build_day_context(calc: Dict[str, Any], extras: Dict[str, Any], bucket: Dict[str, Any]) -> Dict[str, Any]:
+    ymd = _bucket_date_str(bucket)
+    try:
+        date_display = datetime.fromisoformat(ymd).strftime("%m / %d / %Y")
+    except Exception:
+        date_display = ymd
+    lane_mins = _totals_by_lane(bucket.get("segments", []))
+    total_off_duty = _fmt_hhmm(lane_mins.get("OFF", 0))
+    total_sleeper = _fmt_hhmm(lane_mins.get("SB", 0))
+    total_driving = _fmt_hhmm(lane_mins.get("DRIVING", 0))
+    total_onduty = _fmt_hhmm(lane_mins.get("ONDUTY", 0))
+    miles_today = _try_daily_miles(bucket, calc)
+    places = calc.get("places", {}) or {}
+    carrier_name = extras.get("carrier_name") or ""
+    main_office_address = extras.get("main_office_address") or ""
+    vehicle_numbers = extras.get("vehicle_numbers") or extras.get("equipment_ids") or ""
+    remarks_txt = _stops_to_remarks_for_day(calc.get("stops", []), ymd)
+    ctx = {
+        "page_title": f"Driver’s Daily Log — {date_display}",
+        "date_display": date_display,
+        "total_miles_driving_today": miles_today or extras.get("total_miles_driving_today", ""),
+        "vehicle_numbers": vehicle_numbers,
+        "carrier_name": carrier_name,
+        "main_office_address": main_office_address,
+        "driver_signature": extras.get("driver_signature", ""),
+        "co_driver_name": extras.get("co_driver_name", ""),
+        "start_time_display": extras.get("start_time_display", "00:00 (Home Terminal)"),
+        "total_hours_display": extras.get("total_hours_display", ""),
+        "total_off_duty": total_off_duty,
+        "total_sleeper": total_sleeper,
+        "total_driving": total_driving,
+        "total_onduty": total_onduty,
+        "remarks": remarks_txt,
+        "shipping_no": extras.get("shipping_no", ""),
+        "shipper_name": extras.get("shipper_name", places.get("pickup", {}).get("name", "")),
+        "commodity": extras.get("commodity", ""),
+        "day_bucket_json": json.dumps({"date": bucket.get("date"), "segments": bucket.get("segments", [])}),
+    }
+    return ctx
+
+
+_GRADIENT_COLOR_TICK = "rgba(0,0,0,0.85)"
+_GRADIENT_COLOR_HOUR = "rgba(0,0,0,0.90)"
+_VAR_IN_GRADIENT_PATTERNS = [
+    (r"var\(\s*--tick\s*\)", _GRADIENT_COLOR_TICK),
+    (r"var\(\s*--hour\s*\)", _GRADIENT_COLOR_HOUR),
+]
+
+
+def _sanitize_for_weasy(html: str) -> str:
+    out = html
+    for pat, repl in _VAR_IN_GRADIENT_PATTERNS:
+        out = re.sub(pat, repl, out, flags=re.IGNORECASE)
     return out
 
 
-def split_into_daily_pages(base_context: dict) -> list[dict]:
-    """
-    Split the calculation payload into 24-hour pages based on local (home terminal) timezone.
-    - Looks for tz in extras: x.home_tz (e.g., "America/Chicago"), defaults to "UTC".
-    - Each page gets:
-        page.index, page.count
-        page.date (YYYY-MM-DD in local tz)
-        calc_page.stops (subset for the day)
-    """
-    calc = (base_context or {}).get("calc", {}) or {}
-    extras = (base_context or {}).get("x", {}) or {}
-
-    tzname = extras.get("home_tz") or extras.get("tz") or "UTC"
-    stops = calc.get("stops", []) or []
-
-    windows = _day_windows_for_stops(stops, tzname)
-    pages: list[dict] = []
-
-    total_pages = len(windows)
-    for idx, win in enumerate(windows):
-        day_stops = _slice_stops_for_window(stops, win, tzname)
-
-        ctx = {
-            "calc": calc,
-            "x": extras,
-            "page": {
-                "index": idx,
-                "count": total_pages,
-                "date": win.local_start.date().isoformat(),
-                "local_start_iso": win.local_start.isoformat(),
-                "local_end_iso": win.local_end.isoformat(),
-                "tz": tzname,
-            },
-            "calc_page": {
-                **calc,
-                "stops": day_stops,
-            },
-        }
-        pages.append(ctx)
-
-    # If no stops, still return a single page
-    if not pages:
-        pages = [base_context]
-
-    return pages
-
-
-def render_and_store_logs(trip) -> list[dict]:
+def render_and_store_logs(trip) -> List[Dict[str, Any]]:
     calc = trip.calc_payload or {}
-    extras = trip.extras or {}
-    base_context = {"calc": calc, "x": extras}
-    pages_context = split_into_daily_pages(base_context)
-    results: list[dict] = []
-    base_url = getattr(settings, "WEASYPRINT_BASE_URL", None) or getattr(settings, "MEDIA_URL", "/")
+    extras = getattr(trip, "extras", None) or {}
+    day_buckets = (calc.get("dayBuckets") if isinstance(calc, dict) else None) or []
+    results: List[Dict[str, Any]] = []
 
-    for page_idx, ctx in enumerate(pages_context):
-        page_meta = ctx.get("page", {})
-        ctx["display"] = _build_display(calc, extras, page_meta)
+    base_subdir = os.path.join("trips", str(trip.id).strip(), "logs")
+    out_dir = _media_rel(base_subdir)
+    _ensure_dir(out_dir)
 
-        html_bytes = _render_html_page(ctx)
-        html_path = _storage_path(trip.id, page_idx, "html")
-        _save_storage(html_path, html_bytes)
-        TripFile.objects.update_or_create(
-            trip=trip,
-            page_index=page_idx,
-            fmt="html",
-            defaults={"storage_path": html_path},
-        )
+    base_url = (
+        getattr(settings, "WEASYPRINT_BASE_URL", None) or getattr(settings, "STATIC_ROOT", None) or settings.MEDIA_ROOT
+    )
+    template_name = "trips/daily_log.html"
 
-        pdf_url = ""
-        pdf_bytes = _render_pdf_from_html(html_bytes, base_url=base_url)
-        if pdf_bytes:
-            pdf_path = _storage_path(trip.id, page_idx, "pdf")
-            _save_storage(pdf_path, pdf_bytes)
-            TripFile.objects.update_or_create(
-                trip=trip,
-                page_index=page_idx,
-                fmt="pdf",
-                defaults={"storage_path": pdf_path},
-            )
-            pdf_url = default_storage.url(pdf_path)
+    per_day_pdf_paths: List[str] = []
 
-        png_url = ""
-        png_bytes = _render_png_from_html(html_bytes, base_url=base_url)
-        if png_bytes:
-            png_path = _storage_path(trip.id, page_idx, "png")
-            _save_storage(png_path, png_bytes)
-            TripFile.objects.update_or_create(
-                trip=trip,
-                page_index=page_idx,
-                fmt="png",
-                defaults={"storage_path": png_path},
-            )
-            png_url = default_storage.url(png_path)
+    def _date_key(b):
+        try:
+            return datetime.fromisoformat(b.get("date", "1970-01-01"))
+        except Exception:
+            return datetime(1970, 1, 1)
 
+    for bucket in sorted(day_buckets, key=_date_key):
+        date_str = bucket.get("date") or "unknown"
+        safe_date = date_str.replace("/", "-")
+        html_filename = f"log-{safe_date}.html"
+        pdf_filename = f"log-{safe_date}.pdf"
+        html_path = os.path.join(out_dir, html_filename)
+        pdf_path = os.path.join(out_dir, pdf_filename)
+        html_url = _media_url(base_subdir, html_filename)
+        pdf_url = _media_url(base_subdir, pdf_filename)
+
+        context = build_day_context(calc, extras, bucket)
+        html_str = render_to_string(template_name, context)
+        html_for_weasy = _sanitize_for_weasy(html_str)
+
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write(html_str)
+
+        HTML(string=html_for_weasy, base_url=base_url).write_pdf(pdf_path)
+
+        per_day_pdf_paths.append(pdf_path)
         results.append(
             {
-                "page_index": page_idx,
-                "html_url": default_storage.url(html_path),
+                "date": date_str,
+                "html_path": html_path,
+                "html_url": html_url,
+                "pdf_path": pdf_path,
                 "pdf_url": pdf_url,
-                "png_url": png_url,
             }
         )
+
+    zip_html_name = "daily_logs_html.zip"
+    zip_html_path = os.path.join(out_dir, zip_html_name)
+    with zipfile.ZipFile(zip_html_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for r in results:
+            zf.write(r["html_path"], arcname=os.path.basename(r["html_path"]))
+    zip_html_url = _media_url(base_subdir, zip_html_name)
+
+    zip_pdf_name = "daily_logs_pdf.zip"
+    zip_pdf_path = os.path.join(out_dir, zip_pdf_name)
+    with zipfile.ZipFile(zip_pdf_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for r in results:
+            zf.write(r["pdf_path"], arcname=os.path.basename(r["pdf_path"]))
+    zip_pdf_url = _media_url(base_subdir, zip_pdf_name)
+
+    combined_pdf_name = "daily_logs_combined.pdf"
+    combined_pdf_path = os.path.join(out_dir, combined_pdf_name)
+    merger = PdfMerger()
+    for p in per_day_pdf_paths:
+        merger.append(p)
+    with open(combined_pdf_path, "wb") as f:
+        merger.write(f)
+    merger.close()
+    combined_pdf_url = _media_url(base_subdir, combined_pdf_name)
+
+    results.append(
+        {
+            "zip_html_path": zip_html_path,
+            "zip_html_url": zip_html_url,
+            "zip_pdf_path": zip_pdf_path,
+            "zip_pdf_url": zip_pdf_url,
+            "combined_pdf_path": combined_pdf_path,
+            "combined_pdf_url": combined_pdf_url,
+        }
+    )
+
     return results

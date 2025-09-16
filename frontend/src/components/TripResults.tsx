@@ -1,17 +1,10 @@
 import { useMemo, useCallback, memo, useState } from "react";
-import {
-  Box,
-  Stack,
-  Typography,
-  Divider,
-  Button,
-  Alert,
-  Link,
-} from "@mui/material";
+import { Box, Stack, Typography, Divider, Button, Alert } from "@mui/material";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { TripCalcResponse } from "../lib/types";
 import StopsTimeline from "./StopsTimeline";
+import { Link } from "react-router-dom";
 
 type Props = {
   data: TripCalcResponse;
@@ -70,7 +63,7 @@ export default function TripResults({
       {trip && (
         <Alert severity="success" sx={{ borderRadius: 2, mt: 1.5 }}>
           Trip has been logged successfully.
-          <Link href={`/trips/${trip.id}`}>View Trip</Link>
+          <Link to={`/trips/${trip.id}`}>View Trip</Link>
         </Alert>
       )}
 

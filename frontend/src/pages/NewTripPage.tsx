@@ -240,10 +240,15 @@ function PlannerScreen() {
         ),
       ];
       if (coords.length) {
-        const lons = coords.map((c) => c[0]);
-        const lats = coords.map((c) => c[1]);
-        const min: [number, number] = [Math.min(...lons), Math.min(...lats)];
-        const max: [number, number] = [Math.max(...lons), Math.max(...lats)];
+        const min: [number, number] = [
+          calcData.places.current.lng,
+          calcData.places.current.lat,
+        ];
+        const max: [number, number] = [
+          calcData.places.dropoff.lng,
+          calcData.places.dropoff.lat,
+        ];
+
         m.fitBounds([min, max], { padding: 56, duration: 400 });
       }
     }

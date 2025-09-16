@@ -45,12 +45,31 @@ class PlacesSer(serializers.Serializer):
     dropoff = CoordOutSer()
 
 
+class SegmentSer(serializers.Serializer):
+    startIso = serializers.DateTimeField()
+    endIso = serializers.DateTimeField()
+    minutesSpent = serializers.IntegerField()
+    status = serializers.ChoiceField(choices=("DRIVING", "ONDUTY", "OFF", "SB"))
+    label = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, data):
+        if data["endIso"] <= data["startIso"]:
+            raise serializers.ValidationError("endIso must be after startIso")
+        return data
+
+
+class DayBucketSer(serializers.Serializer):
+    date = serializers.DateField()
+    segments = SegmentSer(many=True)
+
+
 class TripCalcResponseSer(serializers.Serializer):
     draft_id = serializers.UUIDField()
     route = serializers.DictField()
     stops = serializers.ListField()
     stats = serializers.DictField()
     places = PlacesSer()
+    dayBuckets = DayBucketSer(many=True)
 
 
 class TripCalcDraftSer(serializers.ModelSerializer):

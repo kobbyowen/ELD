@@ -24,9 +24,10 @@ import maplibregl, { Map as MlMap, type LngLatBoundsLike } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import { apiFetch } from "../lib/api";
-import DailyLogGrid from "../components/DailyLogGrid";
-import { timelineFromCalc } from "../lib/trips";
 import type { TripCalcResponse } from "../lib/types";
+import { useAuth } from "../auth/AuthContext";
+import StopsTimeline from "../components/StopsTimeline";
+import HosLogGrid from "../components/HosGrid";
 
 function stripFirstName(locationName: string): string {
   if (!locationName) return locationName;
@@ -41,7 +42,8 @@ type TripFileRef = {
   pdf_url: string;
   png_url: string;
 };
-type TripDetail = {
+
+export type TripDetail = {
   id: string;
   user: number | string;
   created_at: string;
@@ -85,14 +87,15 @@ function MiniTripMap({
   );
 
   const fitBounds: LngLatBoundsLike = useMemo(() => {
-    const coords = [
-      ...data.route.geometry.coordinates,
-      ...data.stops.map((s) => [s.coord.lng, s.coord.lat] as [number, number]),
+    const min: [number, number] = [
+      data.places.current.lng,
+      data.places.current.lat,
     ];
-    const lons = coords.map((c) => c[0]);
-    const lats = coords.map((c) => c[1]);
-    const min: [number, number] = [Math.min(...lons), Math.min(...lats)];
-    const max: [number, number] = [Math.max(...lons), Math.max(...lats)];
+    const max: [number, number] = [
+      data.places.dropoff.lng,
+      data.places.dropoff.lat,
+    ];
+
     return [min, max];
   }, [data]);
 
@@ -186,6 +189,7 @@ function MiniTripMap({
 export default function TripViewPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [trip, setTrip] = useState<TripDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -210,12 +214,6 @@ export default function TripViewPage() {
       active = false;
     };
   }, [id]);
-
-  const { changes, totals } = !!trip
-    ? timelineFromCalc(trip as unknown as TripCalcResponse)
-    : { changes: null, totals: null };
-
-  console.log({ changes, totals });
 
   const summary = useMemo(() => {
     const calc = trip?.calc_payload;
@@ -397,12 +395,20 @@ export default function TripViewPage() {
               <Chip
                 size="small"
                 label={
-                  trip.extras?.carrier_name
-                    ? `Carrier: ${trip.extras.carrier_name}`
+                  user?.first_name
+                    ? `Carrier: ${user.first_name}`
                     : "Carrier: —"
                 }
               />
             </Stack>
+            {trip.calc_payload?.stops && (
+              <Box sx={{ zoom: 0.7, maxHeight: 200, overflow: "auto", pt: 2 }}>
+                <Typography variant="h6" fontWeight="bold">
+                  Stops Timeline
+                </Typography>
+                <StopsTimeline stops={trip.calc_payload?.stops} />
+              </Box>
+            )}
           </Grid>
 
           <Grid
@@ -463,7 +469,7 @@ export default function TripViewPage() {
         >
           <DescriptionIcon color="disabled" fontSize="small" />
           <Typography variant="caption" color="text.secondary">
-            Daily Log (Page 1)
+            Daily Log
           </Typography>
         </Box>
 
@@ -482,17 +488,29 @@ export default function TripViewPage() {
           </Box>
         ) : (
           <Box sx={{ p: 2 }}>
-            {trip && changes && totals && (
-              <DailyLogGrid
-                changes={changes}
-                totals={totals}
-                height={260}
-                showHourBand
-              />
-            )}
+            <TripHosLogs trip={trip} />
           </Box>
         )}
       </Box>
     </Container>
+  );
+}
+
+function TripHosLogs({ trip }: { trip?: TripDetail }) {
+  if (!trip?.calc_payload?.dayBuckets?.length) return null;
+
+  return (
+    <Box sx={{ p: 2 }}>
+      <Stack spacing={4}>
+        {trip.calc_payload.dayBuckets.map((day, idx) => (
+          <Box key={`${day.date}-${idx}`}>
+            <Typography variant="h6" sx={{ mb: 1 }}>
+              {day.date}
+            </Typography>
+            <HosLogGrid day={day} width={2000} height={560} showTitle={false} />
+          </Box>
+        ))}
+      </Stack>
+    </Box>
   );
 }

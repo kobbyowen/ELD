@@ -10,8 +10,8 @@
         --ink: #111;
         --muted: #666;
         --line: #000;
-        --tick: #000000;
-        --hour: white;
+        --tick: rgba(0, 0, 0, 0.85);
+        --hour: rgba(0, 0, 0, 0.9);
       }
       * {
         box-sizing: border-box;
@@ -24,98 +24,79 @@
       }
       @page {
         size: Letter;
-        margin: 24pt 28pt;
+        margin: 18pt 22pt;
       }
+
       .page {
         width: 816px;
         max-width: 100%;
         margin: 0 auto;
-        padding: 0 6pt 24pt;
+        padding: 10pt;
       }
-      .row {
-        display: flex;
-        gap: 12pt;
+
+      .head {
+        border: 2px solid #000;
+        padding: 10pt 12pt 6pt;
+        position: relative;
       }
-      .between {
-        justify-content: space-between;
-      }
-      .col {
-        display: flex;
-        flex-direction: column;
-      }
-      .mt6 {
-        margin-top: 6pt;
-      }
-      .mt8 {
-        margin-top: 8pt;
-      }
-      .mt10 {
-        margin-top: 10pt;
-      }
-      .mt12 {
-        margin-top: 12pt;
+      .head-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 10pt;
+        align-items: end;
       }
       .title {
-        font-size: 14pt;
+        text-align: center;
         font-weight: 700;
+        font-size: 13.5pt;
+        line-height: 1;
       }
-      .sub {
-        font-size: 8.5pt;
+      .subline {
+        text-align: center;
+        font-size: 8pt;
+        margin-top: 2pt;
+      }
+      .small {
+        font-size: 8pt;
         color: var(--muted);
       }
-      .bval {
-        display: inline-block;
-        font-size: 9pt;
-        border: 1px solid var(--line);
-        padding: 4pt 6pt;
-        border-radius: 2pt;
-        background: #fff;
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 4pt;
       }
-      .uline {
-        display: block;
+      .line {
         min-height: 14pt;
-        padding-bottom: 2pt;
-        border-bottom: 1px solid var(--line);
-      }
-      .recap .uline {
-        font-size: 10px;
+        border-bottom: 1px solid #000;
       }
       .label {
         font-size: 8pt;
         color: var(--muted);
-        margin-top: 4pt;
-      }
-      .grid-two {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 14pt;
       }
 
-      .tl-wrap {
-        border: 1px solid var(--line);
-        border-radius: 2pt;
-        overflow: hidden;
-        margin-top: 10pt;
-        position: relative;
+      .timeline {
+        border: 2px solid #000;
+        border-top: 0;
+        padding: 8pt 10pt 10pt;
       }
       .tl-head {
-        border-bottom: 1px solid var(--line);
         display: grid;
-        grid-template-columns: 70pt 1fr 38pt;
+        grid-template-columns: 80pt 1fr 70pt;
         align-items: end;
+        gap: 6pt;
       }
-      .tl-label-left {
+      .tl-left {
         font-size: 9pt;
-        padding: 4pt 6pt;
       }
       .tl-scale {
         position: relative;
         height: 22pt;
-        border-left: 1px solid var(--line);
-        border-right: 1px solid var(--line);
+        border-left: 1px solid #000;
+        border-right: 1px solid #000;
         background: #fff;
+        color: #000;
       }
-      .tl-label-right {
+      .tl-right {
         font-size: 9pt;
         text-align: center;
       }
@@ -124,82 +105,83 @@
         top: 0;
         bottom: 0;
       }
-      .hour .h-txt {
+      .h-txt {
         position: absolute;
         top: 2pt;
         left: 50%;
         transform: translateX(-50%);
         font-size: 7.5pt;
         background: #fff;
+        color: #000;
         padding: 0 2px;
-      }
-      .h-txt,
-      .tl-scale,
-      .tl-head {
-        background-color: black !important;
-        color: white;
       }
 
       .lane {
         display: grid;
-        grid-template-columns: 70pt 1fr 38pt;
+        grid-template-columns: 80pt 1fr 70pt;
         min-height: 36pt;
-        border-bottom: 1px solid var(--line);
+        border-bottom: 1px solid #000;
       }
       .lane:last-child {
         border-bottom: 0;
       }
       .lane-name {
         font-size: 9pt;
-        padding: 6pt;
+        display: flex;
+        align-items: center;
       }
       .lane-total {
         font-size: 9pt;
-        padding: 6pt 4pt;
-        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       .lane-track {
         position: relative;
-        border-right: 1px solid var(--line);
-        border-left: 1px solid var(--line);
         background: #fff;
+        border-left: 1px solid #000;
+        border-right: 1px solid #000;
         overflow: hidden;
       }
 
-      .lane-track::before,
-      .lane-track::after {
+      .lane-track::before {
         content: "";
         position: absolute;
         left: 0;
         right: 0;
-        height: 12px;
-        pointer-events: none;
-      }
-      .lane-track::before {
+        top: 0;
+        height: 10px;
         background-image: repeating-linear-gradient(
           90deg,
           var(--tick) 0 1px,
           transparent 1px calc(100% / 96)
         );
-        background-repeat: repeat-x;
-        background-size: calc(100% / 96) 100%;
+        pointer-events: none;
       }
       .lane-track::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 10px;
         background-image: repeating-linear-gradient(
           90deg,
-          var(--hour) 0 1px,
-          transparent 1px calc(100% / 24)
+          var(--tick) 0 1px,
+          transparent 1px calc(100% / 96)
         );
-        background-repeat: repeat-x;
-        background-size: calc(100% / 24) 100%;
+        pointer-events: none;
       }
-      .ticks-top::before,
-      .ticks-top::after {
-        top: 0;
-      }
-      .ticks-bottom::before,
-      .ticks-bottom::after {
-        bottom: 0;
+      .lane-track .hour-posts {
+        position: absolute;
+        inset: 0;
+        background-image: repeating-linear-gradient(
+          90deg,
+          var(--hour) 0 1.2px,
+          transparent 1.2px calc(100% / 24)
+        );
+        opacity: 0.9;
+        pointer-events: none;
       }
 
       .progress-svg {
@@ -213,324 +195,275 @@
         shape-rendering: crispEdges;
         stroke-linecap: square;
       }
-      .divider {
-        border-top: 1px solid var(--line);
-        margin: 12pt 0;
+
+      /* Remarks */
+      .remarks {
+        border-left: 2px solid #000;
+        border-right: 2px solid #000;
+        border-bottom: 2px solid #000;
+        padding: 8pt 10pt;
+      }
+      .remarks-scale {
+        position: relative;
+        height: 20pt;
+        border: 1px solid #000;
+        border-top: 0;
+        background: #fff;
+        color: #000;
+      }
+      .remarks-box {
+        border: 1px solid #000;
+        border-top: 0;
+        height: 140pt;
+        padding: 8pt;
       }
 
-      .shipping {
-        border-left: 5px solid #000;
-        border-bottom: 5px solid #000;
-        padding: 10pt 12pt;
-        margin-top: 6pt;
-      }
-      .ship-grid {
+      .foot {
+        border: 2px solid #000;
+        border-top: 0;
+        padding: 8pt 10pt;
         display: grid;
-        grid-template-columns: 1.4fr 1fr;
-        gap: 12pt;
-      }
-      .bar-note {
-        border-top: 1px solid var(--line);
-        border-bottom: 1px solid var(--line);
-        padding: 6pt 6pt;
-        font-size: 8pt;
-        color: #666;
-        margin-top: 10pt;
-      }
-
-      .recap {
-        margin-top: 10pt;
-        display: flex;
-        gap: 5px;
-      }
-      .recap-row {
-        margin: 6pt 0;
-      }
-      .recap-note {
-        font-size: 9pt;
-        line-height: 1.35;
+        grid-template-columns: 1.3fr 1fr 1fr;
+        gap: 10pt;
       }
     </style>
   </head>
   <body>
     <div class="page">
-      <!-- Header -->
-      <div class="row between" style="align-items: flex-end">
-        <div class="col">
-          <div class="title">Drivers Daily Log</div>
-          <div class="sub">(24 hours)</div>
-        </div>
-        <div class="col" style="align-items: center">
-          <div class="bval" style="padding: 3pt 10pt">{{ date_display }}</div>
-          <div class="sub" style="font-size: 7.5pt; margin-top: 3pt">
-            (month)&nbsp;&nbsp;(day)&nbsp;&nbsp;(year)
-          </div>
-        </div>
-        <div class="sub" style="max-width: 240pt; text-align: right">
-          Original — File at home terminal.<br />Duplicate — Driver retains in
-          his/her possession for 8 days.
-        </div>
-      </div>
-
-      <!-- From / To -->
-      <div class="row between mt12">
-        <div style="flex: 1; margin-right: 14pt">
-          <div class="uline">{{ from_location }}</div>
-          <div class="label">From:</div>
-        </div>
-        <div style="flex: 1">
-          <div class="uline">{{ to_location }}</div>
-          <div class="label">To:</div>
-        </div>
-      </div>
-
-      <!-- Third row -->
-      <div class="grid-two mt12">
-        <div class="col" style="gap: 12pt">
-          <div class="grid-two">
-            <div>
-              <div class="bval" style="min-width: 120pt; text-align: center">
-                {{ total_miles_driving_today }}
-              </div>
-              <div class="label">Total Miles Driving Today</div>
-            </div>
-            <div>
-              <div class="bval" style="min-width: 120pt; text-align: center">
-                {{ total_mileage_today }}
-              </div>
-              <div class="label">Total Mileage Today</div>
-            </div>
-          </div>
+      <!-- HEADER -->
+      <div class="head">
+        <div class="head-row">
+          <div class="small">U.S. DEPARTMENT OF TRANSPORTATION</div>
           <div>
-            <div class="bval" style="min-width: 100%; display: block">
-              {{ equipment_ids }}
-            </div>
+            <div class="title">DRIVER’S DAILY LOG</div>
+            <div class="subline">(ONE CALENDAR DAY — 24 HOURS)</div>
+          </div>
+          <div class="small" style="text-align: right">
+            ORIGINAL — Submit to carrier within 13 days<br />
+            DUPLICATE — Driver retains possession for eight days
+          </div>
+        </div>
+
+        <div class="head-row" style="margin-top: 10pt">
+          <div class="field">
+            <div class="line">{{ date_display }}</div>
+            <div class="label">(MONTH) (DAY) (YEAR)</div>
+          </div>
+          <div class="field">
+            <div class="line">{{ total_miles_driving_today }}</div>
+            <div class="label">TOTAL MILES DRIVING TODAY</div>
+          </div>
+          <div class="field">
+            <div class="line">{{ vehicle_numbers }}</div>
+            <div class="label">VEHICLE NUMBERS — (SHOW EACH UNIT)</div>
+          </div>
+        </div>
+
+        <div class="head-row" style="margin-top: 10pt">
+          <div class="field">
+            <div class="line">{{ carrier_name }}</div>
+            <div class="label">NAME OF CARRIER(S)</div>
+          </div>
+          <div class="field">
+            <div class="line">{{ main_office_address }}</div>
+            <div class="label">MAIN OFFICE ADDRESS</div>
+          </div>
+          <div class="field">
+            <div class="line">{{ driver_signature }}</div>
             <div class="label">
-              Truck/Tractor and Trailer Numbers or License Plate(s)/State (show
-              each unit)
+              DRIVER’S SIGNATURE (I certify entries are true and correct)
             </div>
           </div>
         </div>
 
-        <div class="col" style="gap: 12pt">
-          <div>
-            <div class="uline">{{ carrier_name }}</div>
-            <div class="label">Name of Carrier or Carriers</div>
+        <div class="head-row" style="margin-top: 10pt">
+          <div class="field">
+            <div class="line">{{ co_driver_name }}</div>
+            <div class="label">NAME OF CO-DRIVER</div>
           </div>
-          <div>
-            <div class="uline">{{ main_office_address }}</div>
-            <div class="label">Main Office Address</div>
+          <div class="field">
+            <div class="line">{{ start_time_display }}</div>
+            <div class="label">24-HOUR PERIOD STARTING TIME</div>
           </div>
-          <div>
-            <div class="uline">{{ home_terminal_address }}</div>
-            <div class="label">Home Terminal Address</div>
+          <div class="field">
+            <div class="line">{{ total_hours_display }}</div>
+            <div class="label">TOTAL HOURS</div>
           </div>
         </div>
       </div>
 
-      <!-- Timeline -->
-      <div class="tl-wrap mt12" id="tl">
+      <div class="timeline" id="tl">
         <div class="tl-head">
-          <div class="tl-label-left">Mid.</div>
-          <div class="tl-scale" id="tl-scale"></div>
-          <div class="tl-label-right">Total Hours</div>
+          <div class="tl-left">Midnight</div>
+          <div id="tl-scale" class="tl-scale"></div>
+          <div class="tl-right">Total Hours</div>
         </div>
 
         <div class="lane">
-          <div class="lane-name">1. Off Duty</div>
-          <div class="lane-track ticks-top" data-lane="off"></div>
-          <div class="lane-total">{{ total_off_duty }}</div>
+          <div class="lane-name">Off Duty</div>
+          <div class="lane-track" data-lane="off">
+            <div class="hour-posts"></div>
+          </div>
+          <div class="lane-total" id="tot-off">{{ total_off_duty }}</div>
         </div>
         <div class="lane">
-          <div class="lane-name">2. Sleeper Berth</div>
-          <div class="lane-track ticks-top" data-lane="sb"></div>
-          <div class="lane-total">{{ total_sleeper }}</div>
+          <div class="lane-name">Sleeper Berth</div>
+          <div class="lane-track" data-lane="sb">
+            <div class="hour-posts"></div>
+          </div>
+          <div class="lane-total" id="tot-sb">{{ total_sleeper }}</div>
         </div>
         <div class="lane">
-          <div class="lane-name">3. Driving</div>
-          <div class="lane-track ticks-bottom" data-lane="driving"></div>
-          <div class="lane-total">{{ total_driving }}</div>
+          <div class="lane-name">Driving</div>
+          <div class="lane-track" data-lane="driving">
+            <div class="hour-posts"></div>
+          </div>
+          <div class="lane-total" id="tot-driving">{{ total_driving }}</div>
         </div>
         <div class="lane">
-          <div class="lane-name">4. On Duty (not driving)</div>
-          <div class="lane-track ticks-bottom" data-lane="onduty"></div>
-          <div class="lane-total">{{ total_onduty }}</div>
+          <div class="lane-name">On Duty (Not Driving)</div>
+          <div class="lane-track" data-lane="onduty">
+            <div class="hour-posts"></div>
+          </div>
+          <div class="lane-total" id="tot-onduty">{{ total_onduty }}</div>
         </div>
       </div>
 
-      <!-- Remarks -->
-      <div class="mt12">
-        <div class="label">Remarks</div>
-        <div class="uline">{{ remarks }}</div>
-        <div class="divider"></div>
+      <div class="remarks">
+        <div id="remarks-scale" class="remarks-scale"></div>
+        <div class="remarks-box">{{ remarks }}</div>
       </div>
 
-      <!-- Shipping -->
-      <div class="label mt8">Shipping Documents</div>
-      <div class="shipping">
-        <div class="ship-grid">
-          <div class="col" style="gap: 10pt">
-            <div>
-              <div class="uline">{{ bl_or_manifest }}</div>
-              <div class="label">B/L or Manifest No.</div>
-            </div>
-            <div class="sub" style="margin: 4pt 0 0">Or</div>
-            <div>
-              <div class="uline">{{ shipper_and_commodity }}</div>
-              <div class="label">Shipper & Commodity</div>
-            </div>
-          </div>
-          <div class="col" style="gap: 10pt">
-            <div>
-              <div class="uline">{{ additional_note_1 }}</div>
-              <div class="label">Additional Notations</div>
-            </div>
-            <div>
-              <div class="uline">{{ additional_note_2 }}</div>
-              <div class="label">—</div>
-            </div>
-            <div>
-              <div class="uline">{{ additional_note_3 }}</div>
-              <div class="label">—</div>
-            </div>
-          </div>
+      <div class="foot">
+        <div class="field">
+          <div class="line">{{ shipping_no }}</div>
+          <div class="label">Pro or Shipping No.</div>
         </div>
-
-        <div class="bar-note">
-          Enter name of place you reported and where released from work and when
-          each change of duty occurred. Use time standard of home terminal.
+        <div class="field">
+          <div class="line">{{ shipper_name }}</div>
+          <div class="label">Name of Shipper</div>
         </div>
-      </div>
-
-      <div class="divider"></div>
-
-      <!-- Recap (12 rows) -->
-      <div class="recap">
-        <div class="recap-row recap-note">Recap — Completed at end of day.</div>
-        <div class="recap-row">
-          <div class="uline">{{ recap_on_duty_today }}</div>
-          <div class="label">On duty hours today</div>
-        </div>
-        <div class="recap-row recap-note">70 hours / 8 day drivers</div>
-        <div class="recap-row">
-          <div class="uline">{{ recap_a_70 }}</div>
-          <div class="label">
-            A. Total hours on duty last 7 days including today.
-          </div>
-        </div>
-        <div class="recap-row">
-          <div class="uline">{{ recap_b_70 }}</div>
-          <div class="label">B. Total hours available tomorrow (70 − A)</div>
-        </div>
-        <div class="recap-row">
-          <div class="uline">{{ recap_total_7_consec_70 }}</div>
-          <div class="label">Total hours on duty last 7 consecutive days</div>
-        </div>
-        <div class="recap-row recap-note">60 hours / 7 day drivers</div>
-        <div class="recap-row">
-          <div class="uline">{{ recap_a_60 }}</div>
-          <div class="label">
-            A. Total hours on duty last 7 days including today. (60/7)
-          </div>
-        </div>
-        <div class="recap-row">
-          <div class="uline">{{ recap_b_60 }}</div>
-          <div class="label">B. Total hours available tomorrow (60 − A)</div>
-        </div>
-        <div class="recap-row">
-          <div class="uline">{{ recap_total_7_consec_60 }}</div>
-          <div class="label">Total hours on duty last 7 consecutive days</div>
-        </div>
-        <div class="recap-row recap-note">
-          If you took 34 consecutive hours off duty show return day:
+        <div class="field">
+          <div class="line">{{ commodity }}</div>
+          <div class="label">Commodity</div>
         </div>
       </div>
     </div>
 
     <script>
-      // data for progression polyline (inject from backend)
-      window.LOG_DATA = {{ log_changes_json|default:"[]"|safe }};
+      // Provide one day bucket from backend
+      // Example: {"date":"2025-09-16","segments":[{"startIso":"...Z","endIso":"...Z","status":"DRIVING"}]}
+      window.DAY_BUCKET = {{ day_bucket_json|default:"null"|safe }};
 
-      (function () {
+      /* Hour labels for top scale + remarks scale */
+      (function buildScales() {
         const scale = document.getElementById("tl-scale");
-        for (let h = 0; h <= 24; h++) {
+        for (let h=0; h<=24; h++) {
           const el = document.createElement("div");
           el.className = "hour";
           el.style.left = `calc(${h}/24*100%)`;
-          el.style.width = "0";
-          if (h < 24) {
+          if (h<24) {
             const t = document.createElement("div");
             t.className = "h-txt";
-            t.textContent = h === 0 ? "Mid." : h === 12 ? "Noon" : String(h % 12 || 12);
+            t.textContent = (h===0 ? "Midnight" : (h===12 ? "Noon" : (h % 12)));
             el.appendChild(t);
           }
           scale.appendChild(el);
         }
+        const rscale = document.getElementById("remarks-scale");
+        for (let h=0; h<=24; h++) {
+          const el = document.createElement("div"); el.className = "hour";
+          el.style.left = `calc(${h}/24*100%)`;
+          rscale.appendChild(el);
+        }
       })();
 
-      function buildProgress() {
+
+      const MAP = { OFF:"off", SB:"sb", DRIVING:"driving", ONDUTY:"onduty" };
+      function parseIsoUTC(iso){ return new Date(iso.endsWith("Z") ? iso : iso.replace("+00:00","Z")); }
+      function minsFromMidnightUTC(dt){
+        const mid = new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate(), 0,0,0,0));
+        return Math.max(0, Math.min(1440, Math.round((dt - mid) / 60000)));
+      }
+      function fmtHHMM(m){ const h=Math.floor(m/60), mm=m%60|0; return `${h}:${String(mm).padStart(2,"0")}`; }
+
+      function totals(day){
+        const t={off:0,sb:0,driving:0,onduty:0};
+        (day?.segments||[]).forEach(s=>{
+          const m=Math.max(0, Math.round((parseIsoUTC(s.endIso)-parseIsoUTC(s.startIso))/60000));
+          t[MAP[s.status]||"off"] += m;
+        });
+        return t;
+      }
+
+      function changes(day){
+        if(!day) return [];
+        const segs=(day.segments||[])
+          .map(s=>({start:parseIsoUTC(s.startIso), end:parseIsoUTC(s.endIso), lane:MAP[s.status]||"off"}))
+          .sort((a,b)=>a.start-b.start);
+        const out=[]; let initialLane="off";
+        if (segs.length && minsFromMidnightUTC(segs[0].start)===0) initialLane=segs[0].lane;
+        out.push({t:0, lane:initialLane});
+        for(const s of segs){
+          const ts=minsFromMidnightUTC(s.start), te=minsFromMidnightUTC(s.end);
+          const last=out[out.length-1];
+          if (ts>=0 && ts<=1440 && (last.t!==ts || last.lane!==s.lane)){ out.push({t:ts,lane:last.lane}); out.push({t:ts,lane:s.lane}); }
+          if (te>=0 && te<=1440) out.push({t:te,lane:s.lane});
+        }
+        const last=out[out.length-1]; if(!last || last.t<1440) out.push({t:1440, lane:last?last.lane:initialLane});
+        const d=[]; for(const p of out){ const prev=d[d.length-1]; if(!prev||prev.t!==p.t||prev.lane!==p.lane) d.push(p); } return d;
+      }
+
+      function draw(){
         const tl = document.getElementById("tl");
         const tracks = Array.from(tl.querySelectorAll(".lane-track"));
-        if (!tracks.length) return;
+        if(!tracks.length) return;
 
-        const trackLeft = tracks[0].offsetLeft;
-        const trackTop = tracks[0].offsetTop;
-        const trackWidth = tracks[0].clientWidth;
-        const trackBottom = tracks[tracks.length - 1].offsetTop + tracks[tracks.length - 1].offsetHeight;
-        const trackHeight = trackBottom - trackTop;
+        const left = tracks[0].offsetLeft, top = tracks[0].offsetTop;
+        const width = tracks[0].clientWidth;
+        const bottom = tracks[tracks.length-1].offsetTop + tracks[tracks.length-1].offsetHeight;
+        const height = bottom - top;
 
-        const old = tl.querySelector(".progress-svg");
-        if (old) old.remove();
+        const old = tl.querySelector(".progress-svg"); if(old) old.remove();
 
         const svg = document.createElementNS("http://www.w3.org/2000/svg","svg");
         svg.setAttribute("class","progress-svg");
-        svg.style.left = trackLeft + "px";
-        svg.style.top = trackTop + "px";
-        svg.style.width = trackWidth + "px";
-        svg.style.height = trackHeight + "px";
-        svg.setAttribute("viewBox", `0 0 ${trackWidth} ${trackHeight}`);
+        svg.style.left = left+"px"; svg.style.top = top+"px";
+        svg.style.width = width+"px"; svg.style.height = height+"px";
+        svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
         tl.appendChild(svg);
 
         const laneY = {};
-        tracks.forEach((tr) => {
-          laneY[tr.getAttribute("data-lane")] = tr.offsetTop - trackTop + tr.clientHeight / 2;
-        });
+        tracks.forEach(tr => { laneY[tr.getAttribute("data-lane")] = tr.offsetTop - top + tr.clientHeight/2; });
 
-        const clamp = (x, min, max) => Math.max(min, Math.min(max, x));
-        const xOf = (min) => clamp((min / 1440) * trackWidth, 0, trackWidth);
-
-        const changes = Array.isArray(window.LOG_DATA) && window.LOG_DATA.length
-          ? window.LOG_DATA
-          : [
-              { t: 0, lane: "off" },
-              { t: 300, lane: "sb" },
-              { t: 420, lane: "driving" },
-              { t: 720, lane: "onduty" },
-              { t: 780, lane: "driving" },
-              { t: 930, lane: "onduty" },
-              { t: 1020, lane: "off" },
-            ];
-
+        const xOf = (m)=> Math.max(0, Math.min(width, (m/1440)*width));
+        const ch = changes(window.DAY_BUCKET);
         let d = "";
-        const start = changes[0];
-        d += `M ${xOf(start.t)} ${laneY[start.lane]}`;
-        for (let i = 1; i < changes.length; i++) {
-          const cur = changes[i];
-          d += ` H ${xOf(cur.t)}`;
-          d += ` V ${laneY[cur.lane]}`;
+        if (ch.length){
+          d += `M ${xOf(ch[0].t)} ${laneY[ch[0].lane]}`;
+          for (let i=1;i<ch.length;i++){
+            const c = ch[i];
+            d += ` H ${xOf(c.t)}`;
+            if (ch[i-1].lane !== c.lane) d += ` V ${laneY[c.lane]}`;
+          }
         }
 
         const path = document.createElementNS("http://www.w3.org/2000/svg","path");
         path.setAttribute("class","progress-path");
         path.setAttribute("d", d);
         svg.appendChild(path);
+
+
+        const t = totals(window.DAY_BUCKET);
+        const set = (id,v)=>{ const el=document.getElementById(id); if(el && !el.textContent.trim()) el.textContent=v; };
+        set("tot-off", fmtHHMM(t.off));
+        set("tot-sb", fmtHHMM(t.sb));
+        set("tot-driving", fmtHHMM(t.driving));
+        set("tot-onduty", fmtHHMM(t.onduty));
       }
 
-      window.addEventListener("load", buildProgress);
-      window.addEventListener("resize", () => {
-        clearTimeout(window.__r);
-        window.__r = setTimeout(buildProgress, 150);
-      });
+      window.addEventListener("load", draw);
+      window.addEventListener("resize", ()=>{ clearTimeout(window.__r); window.__r=setTimeout(draw,150); });
     </script>
   </body>
 </html>

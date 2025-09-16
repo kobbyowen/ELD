@@ -9,6 +9,7 @@ import { Box, Typography } from "@mui/material";
 
 import FlagIcon from "@mui/icons-material/Flag";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
+import HomeIcon from "@mui/icons-material/Home";
 import FreeBreakfastIcon from "@mui/icons-material/FreeBreakfast";
 import LocalGasStationIcon from "@mui/icons-material/LocalGasStation";
 import HotelIcon from "@mui/icons-material/Hotel";
@@ -16,7 +17,7 @@ import type { JSX } from "react";
 
 type Stop = {
   id: string;
-  type: "pickup" | "break" | "fuel" | "rest" | "dropoff";
+  type: "pickup" | "break" | "fuel" | "rest" | "dropoff" | "start";
   etaIso: string;
   durationMin: number;
   poi?: { name?: string | null };
@@ -24,6 +25,7 @@ type Stop = {
 };
 
 const iconFor: Record<Stop["type"], JSX.Element> = {
+  start: <HomeIcon />,
   pickup: <LocalShippingIcon />,
   break: <FreeBreakfastIcon />,
   fuel: <LocalGasStationIcon />,
@@ -35,6 +37,7 @@ const colorFor: Record<
   Stop["type"],
   "primary" | "secondary" | "success" | "warning" | "error"
 > = {
+  start: "primary",
   pickup: "success",
   break: "primary",
   fuel: "secondary",

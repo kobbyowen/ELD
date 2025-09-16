@@ -42,6 +42,30 @@ type Props = {
   onClear?: () => void;
 };
 
+function nearestUtcMidnightIso(now: Date = new Date()): string {
+  const floorUtcMidnight = new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      0,
+      0,
+      0,
+      0
+    )
+  );
+  const nextUtcMidnight = new Date(
+    floorUtcMidnight.getTime() + 24 * 60 * 60 * 1000
+  );
+
+  const msSinceFloor = now.getTime() - floorUtcMidnight.getTime();
+  const msUntilNext = nextUtcMidnight.getTime() - now.getTime();
+
+  const chosen =
+    msSinceFloor < msUntilNext ? floorUtcMidnight : nextUtcMidnight;
+  return chosen.toISOString();
+}
+
 export default function TripForm({
   defaultValues,
   onCalculated,
@@ -183,7 +207,7 @@ export default function TripForm({
           name: formData.dropoffLocation!,
         },
         currentCycleUsedHours: formData.currentCycleHours,
-        startTimeIso: new Date().toISOString(),
+        startTimeIso: nearestUtcMidnightIso(),
       };
       const resp = await calculateTrip(payload);
       onCalculated(resp as unknown as TripCalcResponse, formData);

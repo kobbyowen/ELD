@@ -16,7 +16,15 @@ export default function PlannerNav() {
         alignItems="center"
         justifyContent="space-between"
       >
-        <Stack direction="row" spacing={1}>
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{
+            display: "flex",
+            justifyContent: "space-around",
+            width: "100%",
+          }}
+        >
           <Button
             component={RouterLink}
             to="/dashboard"
