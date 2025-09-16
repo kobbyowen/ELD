@@ -29,6 +29,14 @@ function Protected({ children }: { children: React.ReactElement }) {
 function AppRoutes() {
   return (
     <Routes>
+      <Route
+        path="/"
+        element={
+          <Protected>
+            <Dashboard />
+          </Protected>
+        }
+      />
       <Route path="/auth/login" element={<LoginPage />} />
       <Route path="/auth/sign-up" element={<SignUpPage />} />
 
@@ -56,7 +64,15 @@ function AppRoutes() {
           </Protected>
         }
       />
-      <Route path="/trips/:id" element={<TripViewPage />} />
+      <Route
+        path="/trips/:id"
+        element={
+          <Protected>
+            <TripViewPage />
+          </Protected>
+        }
+      />
+      <Route path="*" element={<Navigate to="/auth/login" replace />} />
     </Routes>
   );
 }
