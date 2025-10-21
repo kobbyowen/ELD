@@ -1,4 +1,3 @@
-# api/trips/services/routing.py
 import httpx
 
 OSRM = "https://router.project-osrm.org"

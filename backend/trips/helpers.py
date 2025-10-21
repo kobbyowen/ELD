@@ -161,16 +161,15 @@ def _clip_segments_to_days(segments: list[dict]) -> list[dict]:
             )
             cur = chunk_end
 
-    # materialize ordered buckets by date
     out = []
     for day in sorted(by_day.keys()):
-        # keep segments sorted by start time within the day
+
         out.append({"date": day, "segments": sorted(by_day[day], key=lambda x: x["startIso"])})
     return out
 
 
 def plan_trip_payload(d: dict) -> dict:
-    # ---- Inputs / locations
+
     cur = (d["currentLocation"]["lng"], d["currentLocation"]["lat"])
     pick = (d["pickupLocation"]["lng"], d["pickupLocation"]["lat"])
     drop = (d["dropoffLocation"]["lng"], d["dropoffLocation"]["lat"])
@@ -180,7 +179,6 @@ def plan_trip_payload(d: dict) -> dict:
     pick_name = d["pickupLocation"].get("name", "") or ""
     drop_name = d["dropoffLocation"].get("name", "") or ""
 
-    # ---- Route lookup
     route = osrm_route([cur, pick, drop])
     coords = route["geometry"]["coordinates"]
     total_dist_m = route["distance_m"]
