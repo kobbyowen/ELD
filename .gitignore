@@ -7,9 +7,14 @@ frontend/.vite/
 # Python / Django
 bacend/.venv/
 backend/__pycache__/
-
+run/
+staticfiles/
+backend/venv
 backend/*.pyc
-
+db.sqlite3
+run/
+staticfiles/
+venv/
 # OS/Editor
 .DS_Store
 *.swp
