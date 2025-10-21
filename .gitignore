@@ -20,7 +20,7 @@ venv/
 *.swp
 .vscode/
 .idea/
-
+*.pid
 # Env files
 **/.env
 **/.env.*
